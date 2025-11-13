@@ -64,6 +64,10 @@ export class JsonUploadComponent implements OnDestroy {
   currentTime: number = 0;
   duration: number = 0;
   audioElement: HTMLAudioElement | null = null;
+  
+  // Filter properties
+  uniquePhonemes: string[] = [];
+  selectedPhonemeFilter: string | null = null;
 
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
@@ -110,6 +114,9 @@ export class JsonUploadComponent implements OnDestroy {
       .map((segment: Segment) => segment.text.trim())
       .join(' ');
 
+    // Estrai lista fonemi unici
+    this.extractUniquePhonemes();
+
     // Processa le parole con i loro fonemi
     this.processedWords = [];
     
@@ -150,6 +157,75 @@ export class JsonUploadComponent implements OnDestroy {
         });
       }
     }
+  }
+
+  extractUniquePhonemes(): void {
+    const phonemeSet = new Set<string>();
+    
+    if (this.jsonContent.segments && this.jsonContent.segments.length > 0) {
+      const segment = this.jsonContent.segments[0];
+      
+      if (segment.phonemes) {
+        segment.phonemes.forEach((phoneme: Phoneme) => {
+          phonemeSet.add(phoneme.phoneme);
+        });
+      }
+    }
+    
+    this.uniquePhonemes = Array.from(phonemeSet).sort();
+  }
+
+  onPhonemeFilterChange(phoneme: string | null): void {
+    this.selectedPhonemeFilter = phoneme;
+    // Se c'è un filtro attivo e una parola selezionata, deseleziona la parola per mostrare la vista globale
+    if (phoneme && this.selectedWord) {
+      this.selectedWord = null;
+    }
+  }
+
+  getFilteredPhonemes(phonemes: PhonemeWithStatus[]): PhonemeWithStatus[] {
+    if (!this.selectedPhonemeFilter) {
+      return phonemes;
+    }
+    return phonemes.filter(p => p.phoneme === this.selectedPhonemeFilter);
+  }
+
+  hasFilteredPhonemes(phonemes: PhonemeWithStatus[]): boolean {
+    return this.getFilteredPhonemes(phonemes).length > 0;
+  }
+
+  wordContainsFilteredPhoneme(word: ProcessedWord): boolean {
+    if (!this.selectedPhonemeFilter) {
+      return true;
+    }
+    return word.phonemes.some(p => p.phoneme === this.selectedPhonemeFilter);
+  }
+
+  getFilteredWords(): ProcessedWord[] {
+    if (!this.selectedPhonemeFilter) {
+      return this.processedWords;
+    }
+    return this.processedWords.filter(word => this.wordContainsFilteredPhoneme(word));
+  }
+
+  getTotalFilteredPhonemesCount(): number {
+    if (!this.selectedPhonemeFilter) {
+      return 0;
+    }
+    let count = 0;
+    this.processedWords.forEach(word => {
+      count += word.phonemes.filter(p => p.phoneme === this.selectedPhonemeFilter).length;
+    });
+    return count;
+  }
+
+  canMarkPhoneme(phoneme: PhonemeWithStatus): boolean {
+    // Se c'è un filtro attivo, permettere di votare solo per il fonema selezionato
+    if (this.selectedPhonemeFilter) {
+      return phoneme.phoneme === this.selectedPhonemeFilter;
+    }
+    // Se non c'è filtro, permettere di votare per tutti
+    return true;
   }
 
   selectWord(word: ProcessedWord): void {
@@ -406,6 +482,8 @@ export class JsonUploadComponent implements OnDestroy {
     this.fullText = '';
     this.processedWords = [];
     this.phonemeEvaluations.clear();
+    this.uniquePhonemes = [];
+    this.selectedPhonemeFilter = null;
     // Reset file input
     const fileInput = document.getElementById('fileInput') as HTMLInputElement;
     if (fileInput) {

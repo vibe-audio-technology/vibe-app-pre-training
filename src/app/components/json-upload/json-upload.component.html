@@ -157,6 +157,34 @@
           <div class="header-info" *ngIf="jsonContent.language">
             <span class="language-badge">Lingua: {{ jsonContent.language.toUpperCase() }}</span>
           </div>
+          
+          <!-- Phoneme Filter Dropdown -->
+          <div class="phoneme-filter" *ngIf="uniquePhonemes.length > 0">
+            <label for="phonemeFilter" class="filter-label">Filtra fonema:</label>
+            <select 
+              id="phonemeFilter"
+              class="filter-select"
+              [value]="selectedPhonemeFilter || ''"
+              (change)="onPhonemeFilterChange($any($event.target).value || null)"
+            >
+              <option value="">Tutti i fonemi</option>
+              <option *ngFor="let phoneme of uniquePhonemes" [value]="phoneme">
+                {{ phoneme }}
+              </option>
+            </select>
+            <button 
+              *ngIf="selectedPhonemeFilter" 
+              class="clear-filter-btn"
+              (click)="onPhonemeFilterChange(null)"
+              title="Rimuovi filtro"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+          
           <div class="evaluation-stats" *ngIf="getEvaluationStats().total > 0">
             <div class="stat-item">
               <span class="stat-label">Corretti:</span>
@@ -183,12 +211,22 @@
       </div>
 
       <div class="sentence-container">
+        <div class="filter-info" *ngIf="selectedPhonemeFilter">
+          <p>
+            <strong>Fonema selezionato: "{{ selectedPhonemeFilter }}"</strong> - 
+            Trovato in {{ getFilteredWords().length }} parola(e) - 
+            Totale {{ getTotalFilteredPhonemesCount() }} occorrenza(e)
+          </p>
+        </div>
+        
         <div class="sentence-text">
           <span 
             *ngFor="let word of processedWords; let i = index"
             class="word-item"
             [class.selected]="selectedWord === word"
             [class.has-phonemes]="word.phonemes.length > 0"
+            [class.contains-filtered-phoneme]="selectedPhonemeFilter && wordContainsFilteredPhoneme(word)"
+            [class.hidden-by-filter]="selectedPhonemeFilter && !wordContainsFilteredPhoneme(word)"
             [title]="'Clicca per vedere i fonemi'"
           >
             <span (click)="selectWord(word)">{{ word.word }}</span>
@@ -231,13 +269,27 @@
             </div>
           </div>
           <div class="phonemes-section">
-            <h4>Fonemi ({{ selectedWord.phonemes.length }})</h4>
+            <h4>
+              Fonemi 
+              <span *ngIf="selectedPhonemeFilter">
+                ({{ getFilteredPhonemes(selectedWord.phonemes).length }} di {{ selectedWord.phonemes.length }} - {{ selectedPhonemeFilter }})
+              </span>
+              <span *ngIf="!selectedPhonemeFilter">
+                ({{ selectedWord.phonemes.length }})
+              </span>
+            </h4>
+            
+            <div class="filter-message" *ngIf="selectedPhonemeFilter && !hasFilteredPhonemes(selectedWord.phonemes)">
+              <p>⚠️ Nessun fonema "{{ selectedPhonemeFilter }}" trovato in questa parola.</p>
+            </div>
+            
             <div class="phonemes-list">
               <div 
-                *ngFor="let phoneme of selectedWord.phonemes"
+                *ngFor="let phoneme of getFilteredPhonemes(selectedWord.phonemes)"
                 class="phoneme-item"
                 [class.correct]="phoneme.isCorrect === true"
                 [class.incorrect]="phoneme.isCorrect === false"
+                [class.filtered]="selectedPhonemeFilter && phoneme.phoneme === selectedPhonemeFilter"
                 [title]="'Score: ' + (phoneme.score * 100).toFixed(1) + '%'"
               >
                 <div class="phoneme-header">
@@ -265,8 +317,10 @@
                   <button 
                     class="action-btn correct-btn" 
                     [class.active]="phoneme.isCorrect === true"
-                    (click)="markPhoneme(phoneme, true)"
-                    title="Segna come corretto"
+                    [class.disabled]="!canMarkPhoneme(phoneme)"
+                    [disabled]="!canMarkPhoneme(phoneme)"
+                    (click)="canMarkPhoneme(phoneme) && markPhoneme(phoneme, true)"
+                    [title]="canMarkPhoneme(phoneme) ? 'Segna come corretto' : 'Seleziona questo fonema nel filtro per votare'"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <polyline points="20 6 9 17 4 12"></polyline>
@@ -275,8 +329,10 @@
                   <button 
                     class="action-btn incorrect-btn" 
                     [class.active]="phoneme.isCorrect === false"
-                    (click)="markPhoneme(phoneme, false)"
-                    title="Segna come scorretto"
+                    [class.disabled]="!canMarkPhoneme(phoneme)"
+                    [disabled]="!canMarkPhoneme(phoneme)"
+                    (click)="canMarkPhoneme(phoneme) && markPhoneme(phoneme, false)"
+                    [title]="canMarkPhoneme(phoneme) ? 'Segna come scorretto' : 'Seleziona questo fonema nel filtro per votare'"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -285,7 +341,7 @@
                   </button>
                   <button 
                     class="action-btn reset-btn" 
-                    *ngIf="phoneme.isCorrect !== null"
+                    *ngIf="phoneme.isCorrect !== null && canMarkPhoneme(phoneme)"
                     (click)="clearPhonemeEvaluation(phoneme)"
                     title="Rimuovi valutazione"
                   >
@@ -300,7 +356,7 @@
             </div>
             <div class="phonemes-string">
               <span class="phonemes-label">Sequenza fonemi:</span>
-              <span class="phonemes-text">{{ getPhonemesString(selectedWord.phonemes) }}</span>
+              <span class="phonemes-text">{{ getPhonemesString(getFilteredPhonemes(selectedWord.phonemes)) }}</span>
             </div>
           </div>
         </div>
