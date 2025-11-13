@@ -281,13 +281,13 @@ export class JsonUploadComponent implements OnDestroy {
   }
 
   playPhoneme(phoneme: PhonemeWithStatus): void {
-    // Usa un margine più grande per i fonemi (50ms) per sentire meglio il contesto
-    this.playFromTimestamp(phoneme.start, phoneme.end, 0.05);
+    // Usa un margine più grande per i fonemi (100ms) per sentire meglio il contesto
+    this.playFromTimestamp(phoneme.start, phoneme.end, 0.1);
   }
 
   playWord(word: ProcessedWord): void {
-    // Usa un margine più piccolo per le parole (30ms)
-    this.playFromTimestamp(word.start, word.end, 0.03);
+    // Usa un margine più piccolo per le parole (50ms)
+    this.playFromTimestamp(word.start, word.end, 0.05);
   }
 
   formatTimeDisplay(seconds: number): string {
