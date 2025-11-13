@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -45,7 +45,7 @@ interface PhonemeWithStatus extends Phoneme {
   styleUrl: './json-upload.component.css'
 })
 
-export class JsonUploadComponent {
+export class JsonUploadComponent implements OnDestroy {
   uploadedFile: File | null = null;
   jsonContent: any = null;
   errorMessage: string = '';
@@ -54,6 +54,16 @@ export class JsonUploadComponent {
   fullText: string = '';
   processedWords: ProcessedWord[] = [];
   phonemeEvaluations: Map<string, boolean> = new Map(); // Map<phonemeId, isCorrect>
+  
+  // Audio properties
+  audioFile: File | null = null;
+  audioUrl: string | null = null;
+  audioFileName: string = '';
+  audioError: string = '';
+  isPlaying: boolean = false;
+  currentTime: number = 0;
+  duration: number = 0;
+  audioElement: HTMLAudioElement | null = null;
 
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
@@ -159,6 +169,166 @@ export class JsonUploadComponent {
     phoneme.isCorrect = isCorrect;
   }
 
+  onAudioSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files.length > 0) {
+      const file = input.files[0];
+      
+      // Check if file is audio
+      if (!file.type.startsWith('audio/') && !file.name.match(/\.(mp3|wav|ogg|m4a|aac|flac)$/i)) {
+        this.audioError = 'Please upload a valid audio file.';
+        this.audioFile = null;
+        this.audioFileName = '';
+        if (this.audioUrl) {
+          URL.revokeObjectURL(this.audioUrl);
+          this.audioUrl = null;
+        }
+        return;
+      }
+
+      this.audioFile = file;
+      this.audioFileName = file.name;
+      this.audioError = '';
+
+      // Create object URL for audio playback
+      if (this.audioUrl) {
+        URL.revokeObjectURL(this.audioUrl);
+      }
+      this.audioUrl = URL.createObjectURL(file);
+
+      // Initialize audio element
+      this.initializeAudio();
+    }
+  }
+
+  initializeAudio(): void {
+    if (this.audioUrl) {
+      // Wait for next tick to ensure audio element exists in DOM
+      setTimeout(() => {
+        const audioEl = document.getElementById('audioPlayer') as HTMLAudioElement;
+        if (audioEl) {
+          this.audioElement = audioEl;
+          audioEl.src = this.audioUrl || '';
+          audioEl.load();
+          
+          audioEl.addEventListener('loadedmetadata', () => {
+            this.duration = audioEl.duration;
+          });
+
+          audioEl.addEventListener('timeupdate', () => {
+            this.currentTime = audioEl.currentTime;
+          });
+
+          audioEl.addEventListener('play', () => {
+            this.isPlaying = true;
+          });
+
+          audioEl.addEventListener('pause', () => {
+            this.isPlaying = false;
+          });
+
+          audioEl.addEventListener('ended', () => {
+            this.isPlaying = false;
+          });
+        }
+      }, 100);
+    }
+  }
+
+  playAudio(): void {
+    if (this.audioElement) {
+      this.audioElement.play();
+    }
+  }
+
+  pauseAudio(): void {
+    if (this.audioElement) {
+      this.audioElement.pause();
+    }
+  }
+
+  stopAudio(): void {
+    if (this.audioElement) {
+      this.audioElement.pause();
+      this.audioElement.currentTime = 0;
+    }
+  }
+
+  playFromTimestamp(timestamp: number, endTime?: number, margin: number = 0.05): void {
+    if (this.audioElement && this.audioUrl) {
+      // Applica margine: inizia un po' prima e finisci un po' dopo
+      const startTime = Math.max(0, timestamp - margin);
+      this.audioElement.currentTime = startTime;
+      
+      // Se c'è un endTime, imposta un listener per fermare la riproduzione
+      if (endTime !== undefined) {
+        const endTimeWithMargin = Math.min(this.duration || Infinity, endTime + margin);
+        const stopAtEnd = () => {
+          if (this.audioElement && this.audioElement.currentTime >= endTimeWithMargin) {
+            this.audioElement.pause();
+            this.audioElement.removeEventListener('timeupdate', stopAtEnd);
+          }
+        };
+        
+        // Rimuovi eventuali listener precedenti
+        this.audioElement.removeEventListener('timeupdate', stopAtEnd);
+        // Aggiungi il nuovo listener
+        this.audioElement.addEventListener('timeupdate', stopAtEnd);
+      }
+      
+      this.audioElement.play();
+    }
+  }
+
+  playPhoneme(phoneme: PhonemeWithStatus): void {
+    // Usa un margine più grande per i fonemi (50ms) per sentire meglio il contesto
+    this.playFromTimestamp(phoneme.start, phoneme.end, 0.05);
+  }
+
+  playWord(word: ProcessedWord): void {
+    // Usa un margine più piccolo per le parole (30ms)
+    this.playFromTimestamp(word.start, word.end, 0.03);
+  }
+
+  formatTimeDisplay(seconds: number): string {
+    if (isNaN(seconds)) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  }
+
+  onTimeUpdate(event: Event): void {
+    const audio = event.target as HTMLAudioElement;
+    this.currentTime = audio.currentTime;
+  }
+
+  onSeek(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (this.audioElement) {
+      const seekTime = (parseFloat(input.value) / 100) * this.duration;
+      this.audioElement.currentTime = seekTime;
+    }
+  }
+
+  clearAudio(): void {
+    this.stopAudio();
+    this.audioFile = null;
+    this.audioFileName = '';
+    if (this.audioUrl) {
+      URL.revokeObjectURL(this.audioUrl);
+      this.audioUrl = null;
+    }
+    this.audioError = '';
+    if (this.audioElement) {
+      this.audioElement.src = '';
+    }
+    // Reset file input
+    const audioInput = document.getElementById('audioInput') as HTMLInputElement;
+    if (audioInput) {
+      audioInput.value = '';
+    }
+  }
+
   clearPhonemeEvaluation(phoneme: PhonemeWithStatus): void {
     this.phonemeEvaluations.delete(phoneme.id);
     phoneme.isCorrect = null;
@@ -240,6 +410,13 @@ export class JsonUploadComponent {
     const fileInput = document.getElementById('fileInput') as HTMLInputElement;
     if (fileInput) {
       fileInput.value = '';
+    }
+  }
+
+  ngOnDestroy(): void {
+    // Clean up audio URL when component is destroyed
+    if (this.audioUrl) {
+      URL.revokeObjectURL(this.audioUrl);
     }
   }
 
