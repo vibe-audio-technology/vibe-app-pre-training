@@ -476,6 +476,25 @@
   box-shadow: 0 2px 8px rgba(72, 187, 120, 0.3);
 }
 
+.word-item.contains-filtered-phoneme.selected {
+  background: #48bb78;
+  color: white;
+  border: 2px solid #2f855a;
+  box-shadow: 0 4px 12px rgba(72, 187, 120, 0.5);
+}
+
+.word-item.contains-filtered-phoneme.selected .play-word-btn {
+  border-color: white;
+  background: rgba(255, 255, 255, 0.3);
+  color: white;
+}
+
+.word-item.contains-filtered-phoneme.selected .play-word-btn:hover {
+  background: white;
+  color: #48bb78;
+  transform: scale(1.1);
+}
+
 .word-item.hidden-by-filter {
   opacity: 0.3;
   pointer-events: none;
@@ -1210,6 +1229,18 @@
 .play-word-btn:hover {
   background: #667eea;
   color: white;
+  transform: scale(1.1);
+}
+
+.word-item.selected .play-word-btn {
+  border-color: white;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.word-item.selected .play-word-btn:hover {
+  background: white;
+  color: #667eea;
   transform: scale(1.1);
 }
 
