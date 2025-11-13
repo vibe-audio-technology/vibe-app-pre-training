@@ -1,0 +1,216 @@
+<div class="container">
+  <header class="header">
+    <h1>JSON File Upload</h1>
+    <p>Upload and view your JSON files</p>
+  </header>
+
+  <main class="main-content">
+    <div class="upload-section">
+      <div class="upload-area" [class.has-file]="uploadedFile" [class.has-error]="errorMessage">
+        <input
+          type="file"
+          id="fileInput"
+          accept=".json,application/json"
+          (change)="onFileSelected($event)"
+          class="file-input"
+        />
+        
+        <div class="upload-content" *ngIf="!uploadedFile">
+          <svg class="upload-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+          </svg>
+          <p class="upload-text">Click to upload or drag and drop</p>
+          <p class="upload-hint">JSON files only</p>
+        </div>
+
+        <div class="file-info" *ngIf="uploadedFile && !errorMessage">
+          <svg class="file-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+          </svg>
+          <div class="file-details">
+            <p class="file-name">{{ fileName }}</p>
+            <p class="file-status">File uploaded successfully</p>
+          </div>
+          <button class="clear-btn" (click)="clearFile()" aria-label="Clear file">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="error-message" *ngIf="errorMessage">
+        <svg class="error-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+        <span>{{ errorMessage }}</span>
+      </div>
+    </div>
+
+    <!-- Visualizzazione frase con fonemi -->
+    <div class="sentence-view" *ngIf="jsonContent && !errorMessage && processedWords.length > 0">
+      <div class="preview-header">
+        <h2>Frase con Fonemi</h2>
+        <div class="header-actions">
+          <div class="header-info" *ngIf="jsonContent.language">
+            <span class="language-badge">Lingua: {{ jsonContent.language.toUpperCase() }}</span>
+          </div>
+          <div class="evaluation-stats" *ngIf="getEvaluationStats().total > 0">
+            <div class="stat-item">
+              <span class="stat-label">Corretti:</span>
+              <span class="stat-value correct-stat">{{ getEvaluationStats().correct }}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Scorretti:</span>
+              <span class="stat-value incorrect-stat">{{ getEvaluationStats().incorrect }}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Non valutati:</span>
+              <span class="stat-value">{{ getEvaluationStats().notEvaluated }}</span>
+            </div>
+            <button class="export-btn" (click)="exportEvaluations()" *ngIf="getEvaluationStats().correct + getEvaluationStats().incorrect > 0">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+              Esporta Valutazioni
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="sentence-container">
+        <div class="sentence-text">
+          <span 
+            *ngFor="let word of processedWords; let i = index"
+            class="word-item"
+            [class.selected]="selectedWord === word"
+            [class.has-phonemes]="word.phonemes.length > 0"
+            (click)="selectWord(word)"
+            [title]="'Clicca per vedere i fonemi'"
+          >
+            {{ word.word }}
+          </span>
+        </div>
+
+        <!-- Dettagli parola selezionata -->
+        <div class="word-details" *ngIf="selectedWord">
+          <div class="word-header">
+            <h3>{{ selectedWord.word }}</h3>
+            <button class="close-btn" (click)="selectWord(selectedWord)" aria-label="Chiudi">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+          <div class="word-info">
+            <div class="info-item">
+              <span class="info-label">Tempo:</span>
+              <span class="info-value">{{ formatTime(selectedWord.start) }} - {{ formatTime(selectedWord.end) }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Score:</span>
+              <span class="info-value">{{ (selectedWord.score * 100).toFixed(1) }}%</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Durata:</span>
+              <span class="info-value">{{ formatTime(selectedWord.end - selectedWord.start) }}</span>
+            </div>
+          </div>
+          <div class="phonemes-section">
+            <h4>Fonemi ({{ selectedWord.phonemes.length }})</h4>
+            <div class="phonemes-list">
+              <div 
+                *ngFor="let phoneme of selectedWord.phonemes"
+                class="phoneme-item"
+                [class.correct]="phoneme.isCorrect === true"
+                [class.incorrect]="phoneme.isCorrect === false"
+                [title]="'Score: ' + (phoneme.score * 100).toFixed(1) + '%'"
+              >
+                <div class="phoneme-header">
+                  <span class="phoneme-symbol">{{ phoneme.phoneme }}</span>
+                  <span class="evaluation-status" *ngIf="phoneme.isCorrect !== null">
+                    <span *ngIf="phoneme.isCorrect === true" class="status-badge correct-badge">✓ Corretto</span>
+                    <span *ngIf="phoneme.isCorrect === false" class="status-badge incorrect-badge">✗ Scorretto</span>
+                  </span>
+                </div>
+                <span class="phoneme-time">{{ formatTime(phoneme.start) }} - {{ formatTime(phoneme.end) }}</span>
+                <span class="phoneme-score" [class.low-score]="phoneme.score < 0.7">
+                  {{ (phoneme.score * 100).toFixed(0) }}%
+                </span>
+                <div class="phoneme-actions">
+                  <button 
+                    class="action-btn correct-btn" 
+                    [class.active]="phoneme.isCorrect === true"
+                    (click)="markPhoneme(phoneme, true)"
+                    title="Segna come corretto"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </button>
+                  <button 
+                    class="action-btn incorrect-btn" 
+                    [class.active]="phoneme.isCorrect === false"
+                    (click)="markPhoneme(phoneme, false)"
+                    title="Segna come scorretto"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <line x1="18" y1="6" x2="6" y2="18"></line>
+                      <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                  </button>
+                  <button 
+                    class="action-btn reset-btn" 
+                    *ngIf="phoneme.isCorrect !== null"
+                    (click)="clearPhonemeEvaluation(phoneme)"
+                    title="Rimuovi valutazione"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="12" y1="8" x2="12" y2="16"></line>
+                      <line x1="8" y1="12" x2="16" y2="12"></line>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="phonemes-string">
+              <span class="phonemes-label">Sequenza fonemi:</span>
+              <span class="phonemes-text">{{ getPhonemesString(selectedWord.phonemes) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Istruzioni -->
+        <div class="instructions" *ngIf="!selectedWord">
+          <p>👆 Clicca su una parola per vedere i suoi fonemi</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Preview JSON completo (collassabile) -->
+    <div class="json-preview" *ngIf="jsonContent && !errorMessage">
+      <div class="preview-header">
+        <h2>JSON Completo</h2>
+        <button class="copy-btn" (click)="copyToClipboard()" *ngIf="jsonContent" aria-label="Copy JSON">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+          Copy
+        </button>
+      </div>
+      <pre class="json-content">{{ jsonContent | json }}</pre>
+    </div>
+  </main>
+</div>
+
