@@ -1,10 +1,12 @@
 <div class="container">
   <header class="header">
-    <h1>JSON File Upload</h1>
-    <p>Upload and view your JSON files</p>
+    <h1>Vibe App PreTraining</h1>
+    <p>Dashboard per analizzare audio e fonemi</p>
   </header>
 
   <main class="main-content">
+    <!-- Left Column: Upload & Audio -->
+    <div class="left-column">
     <!-- Audio Upload Section -->
     <div class="audio-section">
       <div class="audio-upload-area" [class.has-file]="audioFile" [class.has-error]="audioError">
@@ -101,6 +103,165 @@
       </div>
     </div>
 
+    <!-- API Transcription Section -->
+    <div class="api-section" *ngIf="audioFile || audioUrl">
+      <div class="api-header">
+        <h3>Trascrizione automatica</h3>
+        <p>Quando carichi un file audio, viene automaticamente caricato su S3 e avviata la trascrizione.</p>
+      </div>
+
+      <!-- Process Flow Visualization -->
+      <div class="process-flow" *ngIf="isProcessInProgress() || uploadStep !== 'idle' || transcriptionStatus !== 'idle' || s3BucketDisplay">
+        <h4>Cosa sta succedendo:</h4>
+        
+        <!-- Progress Bar -->
+        <div class="progress-bar-container" *ngIf="isProcessInProgress()">
+          <div class="progress-bar">
+            <div class="progress-fill" [style.width.%]="getOverallProgress().percentage"></div>
+          </div>
+          <span class="progress-text">{{ getOverallProgress().percentage }}% completato</span>
+        </div>
+
+        <!-- Step 1: Upload Presigned URL Request -->
+        <div class="process-step" 
+             [class.active]="uploadStep === 'requesting-url'" 
+             [class.completed]="uploadStep === 'uploading' || uploadStep === 'completed'"
+             [class.error]="uploadStep === 'error'">
+          <div class="step-indicator">
+            <span class="step-number" *ngIf="uploadStep !== 'completed' && uploadStep !== 'error'">1</span>
+            <svg *ngIf="uploadStep === 'completed'" class="check-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <svg *ngIf="uploadStep === 'error'" class="error-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+          </div>
+          <div class="step-content">
+            <div class="step-title">{{ getUploadStepLabel() }}</div>
+            <div class="step-description">
+              <span *ngIf="uploadStep === 'requesting-url'">Richiesta di un URL presigned all'endpoint <code>{{ apiEndpoint }}/uploads/url</code></span>
+              <span *ngIf="uploadStep === 'uploading'">{{ uploadMessage }}</span>
+              <span *ngIf="uploadStep === 'completed'">File caricato con successo su S3</span>
+              <span *ngIf="uploadStep === 'error'" class="error-text">{{ uploadError }}</span>
+            </div>
+            <div class="step-details" *ngIf="s3BucketDisplay && (uploadStep === 'uploading' || uploadStep === 'completed')">
+              <div class="detail-item">
+                <span class="detail-label">S3 Bucket:</span>
+                <code class="detail-value">{{ s3BucketDisplay }}</code>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">S3 Key:</span>
+                <code class="detail-value">{{ s3KeyDisplay }}</code>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2: Transcription -->
+        <div class="process-step" 
+             [class.active]="transcriptionStatus === 'requesting' || transcriptionStatus === 'pending' || transcriptionStatus === 'processing'"
+             [class.completed]="transcriptionStatus === 'done'"
+             [class.error]="transcriptionStatus === 'error'"
+             *ngIf="uploadStep === 'completed' || transcriptionStatus !== 'idle'">
+          <div class="step-indicator">
+            <span class="step-number" *ngIf="transcriptionStatus !== 'done' && transcriptionStatus !== 'error'">2</span>
+            <svg *ngIf="transcriptionStatus === 'done'" class="check-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <svg *ngIf="transcriptionStatus === 'error'" class="error-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+          </div>
+          <div class="step-content">
+            <div class="step-title">{{ getTranscriptionStepLabel() }}</div>
+            <div class="step-description">
+              <span *ngIf="transcriptionStatus === 'requesting'">Invio richiesta di trascrizione all'endpoint <code>{{ apiEndpoint }}/transcriptions</code></span>
+              <span *ngIf="transcriptionStatus === 'pending' || transcriptionStatus === 'processing'">{{ transcriptionMessage }}</span>
+              <span *ngIf="transcriptionStatus === 'done'">Trascrizione completata con successo</span>
+              <span *ngIf="transcriptionStatus === 'error'" class="error-text">{{ transcriptionError }}</span>
+              <span *ngIf="transcriptionStatus === 'idle' && uploadStep === 'completed'">In attesa di avvio...</span>
+            </div>
+            <div class="step-details" *ngIf="transcriptionJobId">
+              <div class="detail-item">
+                <span class="detail-label">Job ID:</span>
+                <code class="detail-value mono">{{ transcriptionJobId }}</code>
+              </div>
+            </div>
+            <div class="step-details" *ngIf="transcriptionStatus !== 'idle' && transcriptionStatus !== 'done' && !transcriptionJobId">
+              <div class="detail-item">
+                <span class="detail-label">Bucket:</span>
+                <code class="detail-value">{{ apiBucket || 'N/A' }}</code>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Key:</span>
+                <code class="detail-value">{{ apiKey || 'N/A' }}</code>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Manual Configuration (shown when not in automatic flow) -->
+      <div class="api-form" *ngIf="!isProcessInProgress() && uploadStep === 'idle' && transcriptionStatus === 'idle'">
+        <div class="form-field">
+          <label for="apiEndpoint">API Endpoint</label>
+          <input
+            id="apiEndpoint"
+            name="apiEndpoint"
+            type="text"
+            placeholder="https://api.example.com"
+            [(ngModel)]="apiEndpoint"
+          />
+        </div>
+        <div class="form-field">
+          <label for="apiBucket">S3 Bucket</label>
+          <input
+            id="apiBucket"
+            name="apiBucket"
+            type="text"
+            placeholder="Nome del bucket"
+            [(ngModel)]="apiBucket"
+          />
+        </div>
+        <div class="form-field">
+          <label for="apiKey">S3 Key (es: uploads/test1.mp3)</label>
+          <input
+            id="apiKey"
+            name="apiKey"
+            type="text"
+            placeholder="uploads/<nome-file>.mp3"
+            [(ngModel)]="apiKey"
+          />
+        </div>
+        <div class="form-field">
+          <label for="apiLanguage">Lingua</label>
+          <input
+            id="apiLanguage"
+            name="apiLanguage"
+            type="text"
+            placeholder="it"
+            [(ngModel)]="apiLanguage"
+          />
+        </div>
+        <div class="form-actions">
+          <button class="transcribe-btn" (click)="startTranscription()" [disabled]="!canStartTranscription()">
+            <span *ngIf="!isTranscriptionInProgress()">Avvia trascrizione</span>
+            <span *ngIf="isTranscriptionInProgress()">Trascrizione in corso...</span>
+          </button>
+        </div>
+        <p class="help-text">
+          Configurazione manuale: puoi modificare endpoint, bucket, key e lingua, poi cliccare "Avvia trascrizione" per processare un file già caricato su S3.
+        </p>
+      </div>
+    </div>
+    </div>
+
+    <!-- Right Column: Phonemes View -->
+    <div class="right-column">
     <!-- Visualizzazione frase con fonemi -->
     <div class="sentence-view" *ngIf="jsonContent && processedWords.length > 0">
       <div class="preview-header">
@@ -319,20 +480,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Preview JSON completo (collassabile) -->
-    <div class="json-preview" *ngIf="jsonContent">
-      <div class="preview-header">
-        <h2>JSON Completo</h2>
-        <button class="copy-btn" (click)="copyToClipboard()" *ngIf="jsonContent" aria-label="Copy JSON">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-          </svg>
-          Copy
-        </button>
-      </div>
-      <pre class="json-content">{{ jsonContent | json }}</pre>
     </div>
   </main>
 </div>

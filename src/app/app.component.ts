@@ -1,11 +1,11 @@
 import { Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import { JsonUploadComponent } from './components/json-upload/json-upload.component';
+import { AudioUploadComponent } from './components/audio-upload/audio-upload.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, JsonUploadComponent],
+  imports: [RouterOutlet, AudioUploadComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css'
 })

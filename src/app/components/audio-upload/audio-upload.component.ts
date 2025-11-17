@@ -1,5 +1,6 @@
 import { Component, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { v4 as uuidv4 } from 'uuid';
 
 interface Segment {
@@ -38,14 +39,14 @@ interface PhonemeWithStatus extends Phoneme {
 }
 
 @Component({
-  selector: 'app-json-upload',
+  selector: 'app-audio-upload',
   standalone: true,
-  imports: [CommonModule],
-  templateUrl: './json-upload.component.html',
-  styleUrl: './json-upload.component.css'
+  imports: [CommonModule, FormsModule],
+  templateUrl: './audio-upload.component.html',
+  styleUrl: './audio-upload.component.css'
 })
 
-export class JsonUploadComponent implements OnDestroy {
+export class AudioUploadComponent implements OnDestroy {
   jsonContent: any = null;
   selectedWord: ProcessedWord | null = null;
   fullText: string = '';
@@ -65,6 +66,23 @@ export class JsonUploadComponent implements OnDestroy {
   // Filter properties
   uniquePhonemes: string[] = [];
   selectedPhonemeFilter: string | null = null;
+
+  // API transcription properties
+  apiEndpoint: string = 'https://0aykjexie5.execute-api.eu-north-1.amazonaws.com';
+  apiBucket: string = 'whisperxinfrastack-audiobucket96beecba-yfuy7gyxedio ';
+  apiKey: string = 'uploads/';
+  apiLanguage: string = 'it';
+  transcriptionJobId: string | null = null;
+  transcriptionStatus: 'idle' | 'requesting' | 'pending' | 'processing' | 'done' | 'error' = 'idle';
+  transcriptionMessage: string = '';
+  transcriptionError: string = '';
+  pollingTimeout: any = null;
+  isUploadingAudio: boolean = false;
+  uploadMessage: string = '';
+  uploadError: string = '';
+  uploadStep: 'idle' | 'requesting-url' | 'uploading' | 'completed' | 'error' = 'idle';
+  s3BucketDisplay: string = '';
+  s3KeyDisplay: string = '';
 
   processJsonData(): void {
     if (!this.jsonContent || !this.jsonContent.segments) {
@@ -207,7 +225,7 @@ export class JsonUploadComponent implements OnDestroy {
     phoneme.isCorrect = isCorrect;
   }
 
-  onAudioSelected(event: Event): void {
+  async onAudioSelected(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     if (input.files && input.files.length > 0) {
       const file = input.files[0];
@@ -227,6 +245,8 @@ export class JsonUploadComponent implements OnDestroy {
       this.audioFile = file;
       this.audioFileName = file.name;
       this.audioError = '';
+      this.resetTranscriptionState();
+      this.apiKey = `uploads/${file.name}`;
 
       // Create object URL for audio playback
       if (this.audioUrl) {
@@ -236,6 +256,8 @@ export class JsonUploadComponent implements OnDestroy {
 
       // Initialize audio element
       this.initializeAudio();
+
+      await this.handlePresignedUploadAndTranscription(file);
     }
   }
 
@@ -365,6 +387,10 @@ export class JsonUploadComponent implements OnDestroy {
     if (audioInput) {
       audioInput.value = '';
     }
+    this.resetTranscriptionState();
+    this.resetUploadState();
+    this.s3BucketDisplay = '';
+    this.s3KeyDisplay = '';
   }
 
   clearPhonemeEvaluation(phoneme: PhonemeWithStatus): void {
@@ -395,6 +421,237 @@ export class JsonUploadComponent implements OnDestroy {
       incorrect,
       notEvaluated
     };
+  }
+
+  canStartTranscription(): boolean {
+    const endpoint = this.apiEndpoint.trim();
+    const bucket = this.apiBucket.trim();
+    const key = this.apiKey.trim();
+    return (
+      !!this.audioFile &&
+      !!endpoint &&
+      !!bucket &&
+      !!key &&
+      !this.isTranscriptionInProgress()
+    );
+  }
+
+  isTranscriptionInProgress(): boolean {
+    return (
+      this.transcriptionStatus === 'requesting' ||
+      this.transcriptionStatus === 'pending' ||
+      this.transcriptionStatus === 'processing'
+    );
+  }
+
+  async startTranscription(): Promise<void> {
+    if (!this.canStartTranscription()) {
+      this.transcriptionError = 'Fornisci endpoint, bucket e chiave S3 prima di procedere.';
+      return;
+    }
+
+    const endpointTrimmed = this.normalizeEndpoint(this.apiEndpoint.trim());
+    const bucketTrimmed = this.apiBucket.trim();
+    const keyTrimmed = this.apiKey.trim();
+    const languageTrimmed = this.apiLanguage?.trim() || 'it';
+
+    this.transcriptionError = '';
+    this.transcriptionMessage = 'Invio richiesta di trascrizione...';
+    this.transcriptionStatus = 'requesting';
+    this.transcriptionJobId = null;
+    this.clearExistingPolling();
+
+    try {
+      const response = await fetch(`${endpointTrimmed}/transcriptions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          s3Bucket: bucketTrimmed,
+          s3Key: keyTrimmed,
+          language: languageTrimmed
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Errore API (${response.status}): ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      if (!data.jobId) {
+        throw new Error('Risposta inattesa: jobId mancante.');
+      }
+
+      this.transcriptionJobId = data.jobId;
+      this.transcriptionStatus = 'pending';
+      this.transcriptionMessage = 'Trascrizione avviata. Attendere il completamento...';
+      this.pollTranscriptionStatus(data.jobId, endpointTrimmed);
+    } catch (error: any) {
+      this.transcriptionStatus = 'error';
+      this.transcriptionError = error?.message || 'Errore durante l\'avvio della trascrizione.';
+    }
+  }
+
+  private normalizeEndpoint(endpoint: string): string {
+    return endpoint ? endpoint.replace(/\/+$/, '') : '';
+  }
+
+  private clearExistingPolling(): void {
+    if (this.pollingTimeout) {
+      clearTimeout(this.pollingTimeout);
+      this.pollingTimeout = null;
+    }
+  }
+
+  private resetTranscriptionState(): void {
+    this.clearExistingPolling();
+    this.transcriptionJobId = null;
+    this.transcriptionStatus = 'idle';
+    this.transcriptionMessage = '';
+    this.transcriptionError = '';
+  }
+
+  private resetUploadState(): void {
+    this.isUploadingAudio = false;
+    this.uploadMessage = '';
+    this.uploadError = '';
+    this.uploadStep = 'idle';
+    this.s3BucketDisplay = '';
+    this.s3KeyDisplay = '';
+  }
+
+  private async handlePresignedUploadAndTranscription(file: File): Promise<void> {
+    const endpoint = this.normalizeEndpoint(this.apiEndpoint.trim());
+    if (!endpoint) {
+      this.uploadError = 'Fornisci un API Endpoint valido per ottenere l’URL di upload.';
+      this.transcriptionMessage = 'Audio caricato. Compila endpoint per avviare la trascrizione.';
+      return;
+    }
+
+    try {
+      this.resetUploadState();
+      this.isUploadingAudio = true;
+      this.uploadStep = 'requesting-url';
+      this.uploadMessage = 'Richiesta URL presigned per upload...';
+
+      const { uploadUrl, s3Bucket, s3Key } = await this.requestPresignedUpload(endpoint, file);
+      this.apiBucket = s3Bucket;
+      this.apiKey = s3Key;
+      this.s3BucketDisplay = s3Bucket;
+      this.s3KeyDisplay = s3Key;
+
+      this.uploadStep = 'uploading';
+      this.uploadMessage = `Upload file su S3 in corso... (bucket: ${s3Bucket}, key: ${s3Key})`;
+      await this.uploadFileToPresignedUrl(uploadUrl, file);
+
+      this.uploadStep = 'completed';
+      this.uploadMessage = 'File caricato correttamente su S3.';
+      this.isUploadingAudio = false;
+
+      if (this.canStartTranscription()) {
+        await this.startTranscription();
+      } else {
+        this.transcriptionStatus = 'idle';
+        this.transcriptionMessage = 'Audio caricato. Compila bucket/key per avviare la trascrizione.';
+      }
+    } catch (error: any) {
+      this.isUploadingAudio = false;
+      this.uploadStep = 'error';
+      this.uploadError = error?.message || 'Errore durante il caricamento dell\'audio.';
+    }
+  }
+
+  private async requestPresignedUpload(endpoint: string, file: File): Promise<{ uploadUrl: string; s3Bucket: string; s3Key: string; }> {
+    const extension = this.getFileExtension(file.name) || 'mp3';
+    const contentType = file.type || 'audio/mpeg';
+
+    const response = await fetch(`${endpoint}/uploads/url`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        extension,
+        contentType
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Errore durante la richiesta URL firmato (${response.status}).`);
+    }
+
+    const data = await response.json();
+    if (!data.uploadUrl || !data.s3Bucket || !data.s3Key) {
+      throw new Error('Risposta inattesa: dati URL firmato mancanti.');
+    }
+
+    return data;
+  }
+
+  private async uploadFileToPresignedUrl(uploadUrl: string, file: File): Promise<void> {
+    const response = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': file.type || 'audio/mpeg'
+      },
+      body: file
+    });
+
+    if (!response.ok) {
+      throw new Error(`Errore durante l’upload su S3 (${response.status}).`);
+    }
+  }
+
+  private getFileExtension(fileName: string): string | null {
+    const match = /\.([a-zA-Z0-9]+)$/.exec(fileName);
+    return match ? match[1].toLowerCase() : null;
+  }
+
+  private async pollTranscriptionStatus(jobId: string, endpoint: string): Promise<void> {
+    this.clearExistingPolling();
+    try {
+      const response = await fetch(`${endpoint}/transcriptions/${jobId}`);
+      if (!response.ok) {
+        throw new Error(`Errore API (${response.status}): ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const status = (data.status || '').toUpperCase();
+
+      if (status === 'DONE') {
+        if (data.result) {
+          this.jsonContent = data.result;
+          this.processJsonData();
+          this.transcriptionStatus = 'done';
+          this.transcriptionMessage = 'Trascrizione completata con successo.';
+          this.selectedWord = null;
+        } else {
+          this.transcriptionStatus = 'error';
+          this.transcriptionError = 'Trascrizione completata ma risultato non disponibile.';
+        }
+        return;
+      }
+
+      if (status === 'FAILED' || status === 'ERROR') {
+        this.transcriptionStatus = 'error';
+        this.transcriptionError = data.error || 'La trascrizione è fallita.';
+        return;
+      }
+
+      if (status === 'PROCESSING') {
+        this.transcriptionStatus = 'processing';
+        this.transcriptionMessage = 'La trascrizione è in corso...';
+      } else {
+        this.transcriptionStatus = 'pending';
+        this.transcriptionMessage = 'In attesa che la trascrizione inizi...';
+      }
+
+      this.pollingTimeout = setTimeout(() => {
+        this.pollTranscriptionStatus(jobId, endpoint);
+      }, 3000);
+    } catch (error: any) {
+      this.transcriptionStatus = 'error';
+      this.transcriptionError = error?.message || 'Errore durante il recupero dello stato della trascrizione.';
+    }
   }
 
   exportEvaluations(): void {
@@ -436,10 +693,10 @@ export class JsonUploadComponent implements OnDestroy {
   }
 
   ngOnDestroy(): void {
-    // Clean up audio URL when component is destroyed
     if (this.audioUrl) {
       URL.revokeObjectURL(this.audioUrl);
     }
+    this.clearExistingPolling();
   }
 
   copyToClipboard(): void {
@@ -452,6 +709,71 @@ export class JsonUploadComponent implements OnDestroy {
         console.error('Failed to copy:', err);
       });
     }
+  }
+
+  getUploadStepLabel(): string {
+    switch (this.uploadStep) {
+      case 'requesting-url':
+        return 'Richiesta URL presigned';
+      case 'uploading':
+        return 'Upload su S3';
+      case 'completed':
+        return 'Upload completato';
+      case 'error':
+        return 'Errore upload';
+      default:
+        return 'In attesa';
+    }
+  }
+
+  getTranscriptionStepLabel(): string {
+    switch (this.transcriptionStatus) {
+      case 'requesting':
+        return 'Avvio trascrizione';
+      case 'pending':
+        return 'In coda';
+      case 'processing':
+        return 'Elaborazione';
+      case 'done':
+        return 'Completato';
+      case 'error':
+        return 'Errore';
+      default:
+        return 'Non avviato';
+    }
+  }
+
+  isProcessInProgress(): boolean {
+    return this.isUploadingAudio || this.isTranscriptionInProgress();
+  }
+
+  getOverallProgress(): { current: number; total: number; percentage: number } {
+    // Upload step: 0-2, Transcription step: 3-5
+    let current = 0;
+    const total = 5;
+
+    if (this.uploadStep === 'requesting-url') {
+      current = 1;
+    } else if (this.uploadStep === 'uploading') {
+      current = 2;
+    } else if (this.uploadStep === 'completed') {
+      current = 3;
+      if (this.transcriptionStatus === 'requesting') {
+        current = 3;
+      } else if (this.transcriptionStatus === 'pending' || this.transcriptionStatus === 'processing') {
+        current = 4;
+      } else if (this.transcriptionStatus === 'done') {
+        current = 5;
+      }
+    } else if (this.uploadStep === 'error' || this.transcriptionStatus === 'error') {
+      current = 0; // Reset on error
+    }
+
+    return {
+      current,
+      total,
+      percentage: Math.round((current / total) * 100)
+    };
   }
 }
 
