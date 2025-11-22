@@ -418,7 +418,7 @@
                 class="phoneme-item"
                 [class.correct]="phoneme.isCorrect === true"
                 [class.incorrect]="phoneme.isCorrect === false"
-                [class.filtered]="selectedPhonemeFilter && phoneme.phoneme === selectedPhonemeFilter"
+                [class.filtered]="phonemeMatchesFilter(phoneme)"
                 [title]="'Score: ' + (phoneme.score * 100).toFixed(1) + '%'"
               >
                 <div class="phoneme-header">

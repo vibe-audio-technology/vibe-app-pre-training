@@ -241,7 +241,8 @@ export class AudioUploadComponent implements OnDestroy {
       if (Array.isArray(phonemeSegments) && phonemeSegments.length > 0) {
         phonemeSegments.forEach((phoneme: Phoneme) => {
           if (phoneme.phoneme) {
-            phonemeSet.add(phoneme.phoneme);
+            // Normalizza in minuscolo per evitare duplicati tra maiuscole e minuscole
+            phonemeSet.add(phoneme.phoneme.toLowerCase());
           }
         });
       }
@@ -262,7 +263,9 @@ export class AudioUploadComponent implements OnDestroy {
     if (!this.selectedPhonemeFilter) {
       return phonemes;
     }
-    return phonemes.filter(p => p.phoneme === this.selectedPhonemeFilter);
+    // Confronto case-insensitive
+    const normalizedFilter = this.selectedPhonemeFilter.toLowerCase();
+    return phonemes.filter(p => p.phoneme.toLowerCase() === normalizedFilter);
   }
 
   hasFilteredPhonemes(phonemes: PhonemeWithStatus[]): boolean {
@@ -273,7 +276,9 @@ export class AudioUploadComponent implements OnDestroy {
     if (!this.selectedPhonemeFilter) {
       return true;
     }
-    return word.phonemes.some(p => p.phoneme === this.selectedPhonemeFilter);
+    // Confronto case-insensitive
+    const normalizedFilter = this.selectedPhonemeFilter.toLowerCase();
+    return word.phonemes.some(p => p.phoneme.toLowerCase() === normalizedFilter);
   }
 
   getFilteredWords(): ProcessedWord[] {
@@ -287,9 +292,11 @@ export class AudioUploadComponent implements OnDestroy {
     if (!this.selectedPhonemeFilter) {
       return 0;
     }
+    // Confronto case-insensitive
+    const normalizedFilter = this.selectedPhonemeFilter.toLowerCase();
     let count = 0;
     this.processedWords.forEach(word => {
-      count += word.phonemes.filter(p => p.phoneme === this.selectedPhonemeFilter).length;
+      count += word.phonemes.filter(p => p.phoneme.toLowerCase() === normalizedFilter).length;
     });
     return count;
   }
@@ -297,10 +304,19 @@ export class AudioUploadComponent implements OnDestroy {
   canMarkPhoneme(phoneme: PhonemeWithStatus): boolean {
     // Se c'è un filtro attivo, permettere di votare solo per il fonema selezionato
     if (this.selectedPhonemeFilter) {
-      return phoneme.phoneme === this.selectedPhonemeFilter;
+      // Confronto case-insensitive
+      return phoneme.phoneme.toLowerCase() === this.selectedPhonemeFilter.toLowerCase();
     }
     // Se non c'è filtro, permettere di votare per tutti
     return true;
+  }
+
+  phonemeMatchesFilter(phoneme: PhonemeWithStatus): boolean {
+    // Helper per il template: verifica se un fonema corrisponde al filtro (case-insensitive)
+    if (!this.selectedPhonemeFilter) {
+      return false;
+    }
+    return phoneme.phoneme.toLowerCase() === this.selectedPhonemeFilter.toLowerCase();
   }
 
   selectWord(word: ProcessedWord): void {
