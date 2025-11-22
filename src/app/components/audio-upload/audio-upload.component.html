@@ -279,8 +279,8 @@
       <div class="preview-header">
         <h2>Frase con Fonemi</h2>
         <div class="header-actions">
-          <div class="header-info" *ngIf="jsonContent.language">
-            <span class="language-badge">Lingua: {{ jsonContent.language.toUpperCase() }}</span>
+          <div class="header-info" *ngIf="(jsonContent?.result?.language || jsonContent?.language)">
+            <span class="language-badge">Lingua: {{ (jsonContent?.result?.language || jsonContent?.language)?.toUpperCase() }}</span>
           </div>
           
           <!-- Phoneme Filter Dropdown -->
@@ -350,13 +350,17 @@
             class="word-item"
             [class.selected]="selectedWord === word"
             [class.has-phonemes]="word.phonemes.length > 0"
+            [class.has-alignment]="word.start >= 0"
+            [class.no-alignment]="word.start < 0"
             [class.contains-filtered-phoneme]="selectedPhonemeFilter && wordContainsFilteredPhoneme(word)"
             [class.hidden-by-filter]="selectedPhonemeFilter && !wordContainsFilteredPhoneme(word)"
-            [title]="'Clicca per vedere i fonemi'"
+            [title]="word.start >= 0 ? 'Clicca per vedere i fonemi' : 'Parola senza allineamento temporale'"
           >
-            <span (click)="selectWord(word)">{{ word.word }}</span>
+            <span 
+              [class.clickable]="word.start >= 0"
+              (click)="word.start >= 0 && selectWord(word)">{{ word.word }}</span>
             <button 
-              *ngIf="audioUrl" 
+              *ngIf="audioUrl && word.start >= 0" 
               class="play-word-btn" 
               (click)="playWord(word); $event.stopPropagation()"
               [title]="'Riproduci audio da: ' + formatTime(word.start)"

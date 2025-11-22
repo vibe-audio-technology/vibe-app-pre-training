@@ -329,6 +329,20 @@
   transform: translateY(-1px);
 }
 
+.word-item.no-alignment {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.word-item.no-alignment:hover {
+  background: transparent;
+  transform: none;
+}
+
+.word-item.no-alignment span.clickable {
+  cursor: default;
+}
+
 .word-item.has-phonemes {
   border-bottom: 2px solid rgba(37, 99, 235, 0.15);
 }

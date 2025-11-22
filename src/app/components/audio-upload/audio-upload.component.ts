@@ -3,12 +3,17 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { v4 as uuidv4 } from 'uuid';
 
-interface Segment {
+interface AsrSegment {
+  start: number;
+  end: number;
+  text: string;
+}
+
+interface AlignedSegment {
   start: number;
   end: number;
   text: string;
   words: Word[];
-  phonemes: Phoneme[];
 }
 
 interface Word {
@@ -85,69 +90,159 @@ export class AudioUploadComponent implements OnDestroy {
   s3KeyDisplay: string = '';
 
   processJsonData(): void {
-    if (!this.jsonContent || !this.jsonContent.segments) {
+    // Nuova struttura: result.text, result.aligned_segments, result.phoneme_segments
+    // jsonContent può essere direttamente il result (dalla API) oppure contenere un campo result
+    if (!this.jsonContent) {
       return;
     }
 
-    // Estrai il testo completo
-    this.fullText = this.jsonContent.segments
-      .map((segment: Segment) => segment.text.trim())
-      .join(' ');
+    // Se jsonContent ha un campo result, usalo, altrimenti usa jsonContent direttamente
+    const result = this.jsonContent.result || this.jsonContent;
 
-    // Estrai lista fonemi unici
+    // Estrai il testo completo (usa result.text se disponibile, altrimenti da asr_segments)
+    // NON usare aligned_segments per il testo completo perché spesso contiene solo l'ultimo segmento
+    if (result.text) {
+      this.fullText = result.text.trim();
+    } else if (result.asr_segments && Array.isArray(result.asr_segments) && result.asr_segments.length > 0) {
+      this.fullText = result.asr_segments
+        .map((segment: AsrSegment) => (segment.text || '').trim())
+        .filter((text: string) => text.length > 0)
+        .join(' ');
+    } else {
+      this.fullText = '';
+    }
+
+    // Estrai lista fonemi unici da result.phoneme_segments
     this.extractUniquePhonemes();
 
-    // Processa le parole con i loro fonemi
-    this.processedWords = [];
+    // Raccogli tutte le parole allineate da word_segments o aligned_segments
+    const alignedWords: Word[] = [];
     
-    if (this.jsonContent.segments && this.jsonContent.segments.length > 0) {
-      const segment = this.jsonContent.segments[0];
+    if (result.word_segments && Array.isArray(result.word_segments) && result.word_segments.length > 0) {
+      alignedWords.push(...result.word_segments);
+    } else if (result.aligned_segments && Array.isArray(result.aligned_segments) && result.aligned_segments.length > 0) {
+      result.aligned_segments.forEach((segment: AlignedSegment) => {
+        if (segment.words && Array.isArray(segment.words) && segment.words.length > 0) {
+          alignedWords.push(...segment.words);
+        }
+      });
+    }
+    
+    // Ordina le parole allineate per timestamp
+    alignedWords.sort((a: Word, b: Word) => a.start - b.start);
+
+    // Raccogli tutti i fonemi da phoneme_segments
+    const allPhonemes: Phoneme[] = result.phoneme_segments || [];
+
+    // Crea una mappa delle parole allineate per matching rapido (normalizza la parola)
+    const alignedWordsMap = new Map<string, Word[]>();
+    alignedWords.forEach((word: Word) => {
+      const normalizedWord = word.word.toLowerCase().replace(/[.,!?;:]/g, '');
+      if (!alignedWordsMap.has(normalizedWord)) {
+        alignedWordsMap.set(normalizedWord, []);
+      }
+      alignedWordsMap.get(normalizedWord)!.push(word);
+    });
+
+    // Tokenizza tutto il testo completo per creare tutte le parole
+    const allTextWords = this.fullText
+      .split(/(\s+|[.,!?;:])/)
+      .filter(token => token.trim().length > 0);
+
+    // Processa tutte le parole del testo completo
+    this.processedWords = [];
+    let alignedWordIndex = 0;
+
+    allTextWords.forEach((token: string) => {
+      // Salta spazi e punteggiatura standalone
+      if (/^[\s.,!?;:]+$/.test(token)) {
+        return;
+      }
+
+      // Normalizza la parola per il matching
+      const normalizedToken = token.toLowerCase().replace(/[.,!?;:]/g, '');
       
-      if (segment.words && segment.phonemes) {
-        segment.words.forEach((word: Word) => {
-          // Trova i fonemi che appartengono a questa parola
-          // Usa un margine di tolleranza per il matching
-          const tolerance = 0.1;
-          const wordPhonemes = segment.phonemes.filter((phoneme: Phoneme) => 
-            phoneme.start >= (word.start - tolerance) && 
-            phoneme.end <= (word.end + tolerance) &&
-            !(phoneme.end < word.start || phoneme.start > word.end)
-          );
+      // Cerca se questa parola ha allineamento
+      let matchedWord: Word | null = null;
+      
+      // Prova prima a matchare per posizione sequenziale
+      if (alignedWordIndex < alignedWords.length) {
+        const alignedWord = alignedWords[alignedWordIndex];
+        const alignedNormalized = alignedWord.word.toLowerCase().replace(/[.,!?;:]/g, '');
+        if (normalizedToken === alignedNormalized) {
+          matchedWord = alignedWord;
+          alignedWordIndex++;
+        }
+      }
+      
+      // Se non trovato per posizione, cerca nella mappa (per parole duplicate)
+      if (!matchedWord && alignedWordsMap.has(normalizedToken)) {
+        const candidates = alignedWordsMap.get(normalizedToken)!;
+        // Usa il primo match disponibile (potrebbe essere migliorato)
+        matchedWord = candidates[0];
+      }
 
-          // Crea fonemi con stato e ID univoco
-          const phonemesWithStatus: PhonemeWithStatus[] = wordPhonemes
-            .sort((a: Phoneme, b: Phoneme) => a.start - b.start)
-            .map((phoneme: Phoneme) => {
-              const phonemeId = uuidv4();
-              const isCorrect = this.phonemeEvaluations.get(phonemeId);
-              return {
-                ...phoneme,
-                id: phonemeId,
-                isCorrect: isCorrect !== undefined ? isCorrect : null
-              };
-            });
+      if (matchedWord) {
+        // Parola con allineamento - trova i fonemi associati
+        const tolerance = 0.1;
+        const wordPhonemes = allPhonemes.filter((phoneme: Phoneme) => 
+          phoneme.start >= (matchedWord!.start - tolerance) && 
+          phoneme.end <= (matchedWord!.end + tolerance) &&
+          !(phoneme.end < matchedWord!.start || phoneme.start > matchedWord!.end)
+        );
 
-          this.processedWords.push({
-            word: word.word,
-            start: word.start,
-            end: word.end,
-            score: word.score,
-            phonemes: phonemesWithStatus
+        const phonemesWithStatus: PhonemeWithStatus[] = wordPhonemes
+          .sort((a: Phoneme, b: Phoneme) => a.start - b.start)
+          .map((phoneme: Phoneme) => {
+            const phonemeId = uuidv4();
+            const isCorrect = this.phonemeEvaluations.get(phonemeId);
+            return {
+              ...phoneme,
+              id: phonemeId,
+              isCorrect: isCorrect !== undefined ? isCorrect : null
+            };
           });
+
+        this.processedWords.push({
+          word: token,
+          start: matchedWord.start,
+          end: matchedWord.end,
+          score: matchedWord.score,
+          phonemes: phonemesWithStatus
+        });
+      } else {
+        // Parola senza allineamento - crea una parola "virtuale" senza timestamp
+        this.processedWords.push({
+          word: token,
+          start: -1, // Indica che non ha allineamento
+          end: -1,
+          score: 0,
+          phonemes: []
         });
       }
-    }
+    });
   }
 
   extractUniquePhonemes(): void {
     const phonemeSet = new Set<string>();
     
-    if (this.jsonContent.segments && this.jsonContent.segments.length > 0) {
-      const segment = this.jsonContent.segments[0];
+    // Nuova struttura: result.phoneme_segments è un array flat di fonemi
+    // jsonContent può essere direttamente il result (dalla API) oppure contenere un campo result
+    if (!this.jsonContent) {
+      this.uniquePhonemes = [];
+      return;
+    }
+
+    const result = this.jsonContent.result || this.jsonContent;
+    
+    if (result && result.phoneme_segments) {
+      const phonemeSegments = result.phoneme_segments;
       
-      if (segment.phonemes) {
-        segment.phonemes.forEach((phoneme: Phoneme) => {
-          phonemeSet.add(phoneme.phoneme);
+      if (Array.isArray(phonemeSegments) && phonemeSegments.length > 0) {
+        phonemeSegments.forEach((phoneme: Phoneme) => {
+          if (phoneme.phoneme) {
+            phonemeSet.add(phoneme.phoneme);
+          }
         });
       }
     }
