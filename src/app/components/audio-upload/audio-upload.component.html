@@ -345,149 +345,150 @@
         </div>
         
         <div class="sentence-text">
-          <span 
-            *ngFor="let word of processedWords; let i = index"
-            class="word-item"
-            [class.selected]="selectedWord === word"
-            [class.has-phonemes]="word.phonemes.length > 0"
-            [class.has-alignment]="word.start >= 0"
-            [class.no-alignment]="word.start < 0"
-            [class.contains-filtered-phoneme]="selectedPhonemeFilter && wordContainsFilteredPhoneme(word)"
-            [class.hidden-by-filter]="selectedPhonemeFilter && !wordContainsFilteredPhoneme(word)"
-            [title]="word.start >= 0 ? 'Clicca per vedere i fonemi' : 'Parola senza allineamento temporale'"
-          >
+          <ng-container *ngFor="let word of processedWords; let i = index">
             <span 
-              [class.clickable]="word.start >= 0"
-              (click)="word.start >= 0 && selectWord(word)">{{ word.word }}</span>
-            <button 
-              *ngIf="audioUrl && word.start >= 0" 
-              class="play-word-btn" 
-              (click)="playWord(word); $event.stopPropagation()"
-              [title]="'Riproduci audio da: ' + formatTime(word.start)"
+              class="word-item"
+              [class.selected]="selectedWord === word"
+              [class.has-phonemes]="word.phonemes.length > 0"
+              [class.has-alignment]="word.start >= 0"
+              [class.no-alignment]="word.start < 0"
+              [class.contains-filtered-phoneme]="selectedPhonemeFilter && wordContainsFilteredPhoneme(word)"
+              [class.hidden-by-filter]="selectedPhonemeFilter && !wordContainsFilteredPhoneme(word)"
+              [title]="word.start >= 0 ? 'Clicca per vedere i fonemi' : 'Parola senza allineamento temporale'"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polygon points="5 3 19 12 5 21 5 3"></polygon>
-              </svg>
-            </button>
-          </span>
-        </div>
-
-        <!-- Dettagli parola selezionata -->
-        <div class="word-details" *ngIf="selectedWord">
-          <div class="word-header">
-            <h3>{{ selectedWord.word }}</h3>
-            <button class="close-btn" (click)="selectWord(selectedWord)" aria-label="Chiudi">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </button>
-          </div>
-          <div class="word-info">
-            <div class="info-item">
-              <span class="info-label">Tempo:</span>
-              <span class="info-value">{{ formatTime(selectedWord.start) }} - {{ formatTime(selectedWord.end) }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Score:</span>
-              <span class="info-value">{{ (selectedWord.score * 100).toFixed(1) }}%</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Durata:</span>
-              <span class="info-value">{{ formatTime(selectedWord.end - selectedWord.start) }}</span>
-            </div>
-          </div>
-          <div class="phonemes-section">
-            <h4>
-              Fonemi 
-              <span *ngIf="selectedPhonemeFilter">
-                ({{ getFilteredPhonemes(selectedWord.phonemes).length }} di {{ selectedWord.phonemes.length }} - {{ selectedPhonemeFilter }})
-              </span>
-              <span *ngIf="!selectedPhonemeFilter">
-                ({{ selectedWord.phonemes.length }})
-              </span>
-            </h4>
-            
-            <div class="filter-message" *ngIf="selectedPhonemeFilter && !hasFilteredPhonemes(selectedWord.phonemes)">
-              <p>⚠️ Nessun fonema "{{ selectedPhonemeFilter }}" trovato in questa parola.</p>
-            </div>
-            
-            <div class="phonemes-list">
-              <div 
-                *ngFor="let phoneme of getFilteredPhonemes(selectedWord.phonemes)"
-                class="phoneme-item"
-                [class.correct]="phoneme.isCorrect === true"
-                [class.incorrect]="phoneme.isCorrect === false"
-                [class.filtered]="phonemeMatchesFilter(phoneme)"
-                [title]="'Score: ' + (phoneme.score * 100).toFixed(1) + '%'"
+              <span 
+                [class.clickable]="word.start >= 0"
+                (click)="word.start >= 0 && selectWord(word)">{{ word.word }}</span>
+              <button 
+                *ngIf="audioUrl && word.start >= 0" 
+                class="play-word-btn" 
+                (click)="playWord(word); $event.stopPropagation()"
+                [title]="'Riproduci audio da: ' + formatTime(word.start)"
               >
-                <div class="phoneme-header">
-                  <span class="phoneme-symbol">{{ phoneme.phoneme }}</span>
-                  <span class="evaluation-status" *ngIf="phoneme.isCorrect !== null">
-                    <span *ngIf="phoneme.isCorrect === true" class="status-badge correct-badge">✓ Corretto</span>
-                    <span *ngIf="phoneme.isCorrect === false" class="status-badge incorrect-badge">✗ Scorretto</span>
-                  </span>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+              </button>
+            </span>
+            
+            <!-- Dettagli parola selezionata - appare inline subito dopo la parola -->
+            <div class="word-details-inline" *ngIf="selectedWord === word">
+              <div class="word-header">
+                <h3>{{ selectedWord.word }}</h3>
+                <button class="close-btn" (click)="selectWord(selectedWord)" aria-label="Chiudi">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+              </div>
+              <div class="word-info">
+                <div class="info-item">
+                  <span class="info-label">Tempo:</span>
+                  <span class="info-value">{{ formatTime(selectedWord.start) }} - {{ formatTime(selectedWord.end) }}</span>
                 </div>
-                <span class="phoneme-time">{{ formatTime(phoneme.start) }} - {{ formatTime(phoneme.end) }}</span>
-                <span class="phoneme-score" [class.low-score]="phoneme.score < 0.7">
-                  {{ (phoneme.score * 100).toFixed(0) }}%
-                </span>
-                <div class="phoneme-actions">
-                  <button 
-                    *ngIf="audioUrl"
-                    class="action-btn play-phoneme-btn" 
-                    (click)="playPhoneme(phoneme)"
-                    [title]="'Riproduci audio da: ' + formatTime(phoneme.start)"
+                <div class="info-item">
+                  <span class="info-label">Score:</span>
+                  <span class="info-value">{{ (selectedWord.score * 100).toFixed(1) }}%</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Durata:</span>
+                  <span class="info-value">{{ formatTime(selectedWord.end - selectedWord.start) }}</span>
+                </div>
+              </div>
+              <div class="phonemes-section">
+                <h4>
+                  Fonemi 
+                  <span *ngIf="selectedPhonemeFilter">
+                    ({{ getFilteredPhonemes(selectedWord.phonemes).length }} di {{ selectedWord.phonemes.length }} - {{ selectedPhonemeFilter }})
+                  </span>
+                  <span *ngIf="!selectedPhonemeFilter">
+                    ({{ selectedWord.phonemes.length }})
+                  </span>
+                </h4>
+                
+                <div class="filter-message" *ngIf="selectedPhonemeFilter && !hasFilteredPhonemes(selectedWord.phonemes)">
+                  <p>⚠️ Nessun fonema "{{ selectedPhonemeFilter }}" trovato in questa parola.</p>
+                </div>
+                
+                <div class="phonemes-list">
+                  <div 
+                    *ngFor="let phoneme of getFilteredPhonemes(selectedWord.phonemes)"
+                    class="phoneme-item"
+                    [class.correct]="phoneme.isCorrect === true"
+                    [class.incorrect]="phoneme.isCorrect === false"
+                    [class.filtered]="phonemeMatchesFilter(phoneme)"
+                    [title]="'Score: ' + (phoneme.score * 100).toFixed(1) + '%'"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                    </svg>
-                  </button>
-                  <button 
-                    class="action-btn correct-btn" 
-                    [class.active]="phoneme.isCorrect === true"
-                    [class.disabled]="!canMarkPhoneme(phoneme)"
-                    [disabled]="!canMarkPhoneme(phoneme)"
-                    (click)="canMarkPhoneme(phoneme) && markPhoneme(phoneme, true)"
-                    [title]="canMarkPhoneme(phoneme) ? 'Segna come corretto' : 'Seleziona questo fonema nel filtro per votare'"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <polyline points="20 6 9 17 4 12"></polyline>
-                    </svg>
-                  </button>
-                  <button 
-                    class="action-btn incorrect-btn" 
-                    [class.active]="phoneme.isCorrect === false"
-                    [class.disabled]="!canMarkPhoneme(phoneme)"
-                    [disabled]="!canMarkPhoneme(phoneme)"
-                    (click)="canMarkPhoneme(phoneme) && markPhoneme(phoneme, false)"
-                    [title]="canMarkPhoneme(phoneme) ? 'Segna come scorretto' : 'Seleziona questo fonema nel filtro per votare'"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <line x1="18" y1="6" x2="6" y2="18"></line>
-                      <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                  </button>
-                  <button 
-                    class="action-btn reset-btn" 
-                    *ngIf="phoneme.isCorrect !== null && canMarkPhoneme(phoneme)"
-                    (click)="clearPhonemeEvaluation(phoneme)"
-                    title="Rimuovi valutazione"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <circle cx="12" cy="12" r="10"></circle>
-                      <line x1="12" y1="8" x2="12" y2="16"></line>
-                      <line x1="8" y1="12" x2="16" y2="12"></line>
-                    </svg>
-                  </button>
+                    <div class="phoneme-header">
+                      <span class="phoneme-symbol">{{ phoneme.phoneme }}</span>
+                      <span class="evaluation-status" *ngIf="phoneme.isCorrect !== null">
+                        <span *ngIf="phoneme.isCorrect === true" class="status-badge correct-badge">✓ Corretto</span>
+                        <span *ngIf="phoneme.isCorrect === false" class="status-badge incorrect-badge">✗ Scorretto</span>
+                      </span>
+                    </div>
+                    <span class="phoneme-time">{{ formatTime(phoneme.start) }} - {{ formatTime(phoneme.end) }}</span>
+                    <span class="phoneme-score" [class.low-score]="phoneme.score < 0.7">
+                      {{ (phoneme.score * 100).toFixed(0) }}%
+                    </span>
+                    <div class="phoneme-actions">
+                      <button 
+                        *ngIf="audioUrl"
+                        class="action-btn play-phoneme-btn" 
+                        (click)="playPhoneme(phoneme)"
+                        [title]="'Riproduci audio da: ' + formatTime(phoneme.start)"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                        </svg>
+                      </button>
+                      <button 
+                        class="action-btn correct-btn" 
+                        [class.active]="phoneme.isCorrect === true"
+                        [class.disabled]="!canMarkPhoneme(phoneme)"
+                        [disabled]="!canMarkPhoneme(phoneme)"
+                        (click)="canMarkPhoneme(phoneme) && markPhoneme(phoneme, true)"
+                        [title]="canMarkPhoneme(phoneme) ? 'Segna come corretto' : 'Seleziona questo fonema nel filtro per votare'"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                      </button>
+                      <button 
+                        class="action-btn incorrect-btn" 
+                        [class.active]="phoneme.isCorrect === false"
+                        [class.disabled]="!canMarkPhoneme(phoneme)"
+                        [disabled]="!canMarkPhoneme(phoneme)"
+                        (click)="canMarkPhoneme(phoneme) && markPhoneme(phoneme, false)"
+                        [title]="canMarkPhoneme(phoneme) ? 'Segna come scorretto' : 'Seleziona questo fonema nel filtro per votare'"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <line x1="18" y1="6" x2="6" y2="18"></line>
+                          <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                      </button>
+                      <button 
+                        class="action-btn reset-btn" 
+                        *ngIf="phoneme.isCorrect !== null && canMarkPhoneme(phoneme)"
+                        (click)="clearPhonemeEvaluation(phoneme)"
+                        title="Rimuovi valutazione"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <line x1="12" y1="8" x2="12" y2="16"></line>
+                          <line x1="8" y1="12" x2="16" y2="12"></line>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div class="phonemes-string">
+                  <span class="phonemes-label">Sequenza fonemi:</span>
+                  <span class="phonemes-text">{{ getPhonemesString(getFilteredPhonemes(selectedWord.phonemes)) }}</span>
                 </div>
               </div>
             </div>
-            <div class="phonemes-string">
-              <span class="phonemes-label">Sequenza fonemi:</span>
-              <span class="phonemes-text">{{ getPhonemesString(getFilteredPhonemes(selectedWord.phonemes)) }}</span>
-            </div>
-          </div>
+          </ng-container>
         </div>
 
         <!-- Istruzioni -->

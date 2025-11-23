@@ -420,6 +420,21 @@
   animation: slideDown 0.3s ease;
 }
 
+/* Dettagli parola inline - appare direttamente dopo la parola selezionata */
+.word-details-inline {
+  display: block;
+  width: 100%;
+  clear: both;
+  background: #f7fafc;
+  border: 2px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  margin: 1rem 0;
+  animation: slideDown 0.3s ease;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+  break-inside: avoid;
+}
+
 @keyframes slideDown {
   from {
     opacity: 0;

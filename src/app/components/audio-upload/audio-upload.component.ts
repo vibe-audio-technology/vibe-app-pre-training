@@ -321,6 +321,19 @@ export class AudioUploadComponent implements OnDestroy {
 
   selectWord(word: ProcessedWord): void {
     this.selectedWord = this.selectedWord === word ? null : word;
+    
+    // Scroll automatico per mostrare il pannello quando una parola viene selezionata
+    if (this.selectedWord) {
+      setTimeout(() => {
+        const wordElement = document.querySelector('.word-item.selected');
+        if (wordElement) {
+          const detailsElement = wordElement.nextElementSibling as HTMLElement;
+          if (detailsElement && detailsElement.classList.contains('word-details-inline')) {
+            detailsElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+          }
+        }
+      }, 100);
+    }
   }
 
   getPhonemesString(phonemes: PhonemeWithStatus[]): string {
