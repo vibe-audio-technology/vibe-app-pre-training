@@ -30,6 +30,16 @@ interface Phoneme {
   score: number;
 }
 
+interface IpaPhoneme {
+  ipa_symbol: string;
+  orthographic: string;
+  start: number;
+  end: number;
+  linguistic_weight: number;
+  confidence: number;
+  description: string;
+}
+
 interface ProcessedWord {
   word: string;
   start: number;
@@ -41,6 +51,12 @@ interface ProcessedWord {
 interface PhonemeWithStatus extends Phoneme {
   id: string;
   isCorrect?: boolean | null; // null = non valutato, true = corretto, false = scorretto
+  // Campi aggiuntivi dai nuovi dati IPA
+  ipa_symbol?: string;
+  orthographic?: string;
+  linguistic_weight?: number;
+  confidence?: number;
+  description?: string;
 }
 
 @Component({
@@ -132,7 +148,31 @@ export class AudioUploadComponent implements OnDestroy {
     alignedWords.sort((a: Word, b: Word) => a.start - b.start);
 
     // Raccogli tutti i fonemi da phoneme_segments
-    const allPhonemes: Phoneme[] = result.phoneme_segments || [];
+    // Supporta anche il nuovo formato IPA dettagliato (ipa_segments o ipa_phoneme_segments)
+    // Cerca anche a livello root se non trovato in result
+    const allPhonemes: Phoneme[] = [];
+    const ipaPhonemes: IpaPhoneme[] = result.ipa_segments || result.ipa_phoneme_segments || 
+                                      this.jsonContent.ipa_segments || this.jsonContent.ipa_phoneme_segments || [];
+    
+    // Se ci sono dati IPA dettagliati, usali come fonte primaria
+    if (ipaPhonemes.length > 0) {
+      // Converti i dati IPA nel formato Phoneme standard
+      ipaPhonemes.forEach((ipa: IpaPhoneme) => {
+        allPhonemes.push({
+          phoneme: ipa.ipa_symbol,
+          start: ipa.start,
+          end: ipa.end,
+          score: ipa.linguistic_weight || ipa.confidence || 0.8
+        });
+      });
+    } else {
+      // Fallback ai dati phoneme_segments esistenti
+      allPhonemes.push(...(result.phoneme_segments || []));
+    }
+    
+    // Mantieni riferimento ai dati IPA completi per uso futuro
+    // Crea un array ordinato per facilitare il matching
+    const sortedIpaPhonemes = [...ipaPhonemes].sort((a, b) => a.start - b.start);
 
     // Crea una mappa delle parole allineate per matching rapido (normalizza la parola)
     const alignedWordsMap = new Map<string, Word[]>();
@@ -196,10 +236,40 @@ export class AudioUploadComponent implements OnDestroy {
           .map((phoneme: Phoneme) => {
             const phonemeId = uuidv4();
             const isCorrect = this.phonemeEvaluations.get(phonemeId);
+            
+            // Cerca dati IPA dettagliati corrispondenti (match per timestamp e simbolo)
+            let ipaData: IpaPhoneme | undefined;
+            const tolerance = 0.01; // 10ms di tolleranza per il matching
+            // Cerca il fonema IPA più vicino che corrisponde per timestamp e simbolo
+            for (const ipa of sortedIpaPhonemes) {
+              if (Math.abs(ipa.start - phoneme.start) < tolerance && 
+                  Math.abs(ipa.end - phoneme.end) < tolerance &&
+                  ipa.ipa_symbol === phoneme.phoneme) {
+                ipaData = ipa;
+                break;
+              }
+            }
+            // Se non trovato con match esatto, prova solo con timestamp (per compatibilità)
+            if (!ipaData) {
+              for (const ipa of sortedIpaPhonemes) {
+                if (Math.abs(ipa.start - phoneme.start) < tolerance && 
+                    Math.abs(ipa.end - phoneme.end) < tolerance) {
+                  ipaData = ipa;
+                  break;
+                }
+              }
+            }
+            
             return {
               ...phoneme,
               id: phonemeId,
-              isCorrect: isCorrect !== undefined ? isCorrect : null
+              isCorrect: isCorrect !== undefined ? isCorrect : null,
+              // Aggiungi dati IPA dettagliati se disponibili
+              ipa_symbol: ipaData?.ipa_symbol || phoneme.phoneme,
+              orthographic: ipaData?.orthographic,
+              linguistic_weight: ipaData?.linguistic_weight,
+              confidence: ipaData?.confidence,
+              description: ipaData?.description
             };
           });
 
@@ -235,6 +305,20 @@ export class AudioUploadComponent implements OnDestroy {
 
     const result = this.jsonContent.result || this.jsonContent;
     
+    // Prima controlla i nuovi dati IPA dettagliati
+    // Cerca anche a livello root se non trovato in result
+    const ipaPhonemes: IpaPhoneme[] = result.ipa_segments || result.ipa_phoneme_segments || 
+                                      this.jsonContent.ipa_segments || this.jsonContent.ipa_phoneme_segments || [];
+    if (ipaPhonemes.length > 0) {
+      ipaPhonemes.forEach((ipa: IpaPhoneme) => {
+        if (ipa.ipa_symbol) {
+          // Normalizza in minuscolo per evitare duplicati tra maiuscole e minuscole
+          phonemeSet.add(ipa.ipa_symbol.toLowerCase());
+        }
+      });
+    }
+    
+    // Fallback ai dati phoneme_segments esistenti
     if (result && result.phoneme_segments) {
       const phonemeSegments = result.phoneme_segments;
       
@@ -338,6 +422,24 @@ export class AudioUploadComponent implements OnDestroy {
 
   getPhonemesString(phonemes: PhonemeWithStatus[]): string {
     return phonemes.map(p => p.phoneme).join(' ');
+  }
+
+  getPhonemeTooltip(phoneme: PhonemeWithStatus): string {
+    let tooltip = `IPA: ${phoneme.phoneme}\nScore: ${(phoneme.score * 100).toFixed(1)}%`;
+    
+    if (phoneme.linguistic_weight !== undefined) {
+      tooltip += `\nLinguistic Weight: ${(phoneme.linguistic_weight * 100).toFixed(1)}%`;
+    }
+    
+    if (phoneme.confidence !== undefined) {
+      tooltip += `\nConfidence: ${(phoneme.confidence * 100).toFixed(1)}%`;
+    }
+    
+    if (phoneme.description) {
+      tooltip += `\n${phoneme.description}`;
+    }
+    
+    return tooltip;
   }
 
   formatTime(seconds: number): string {
@@ -784,7 +886,7 @@ export class AudioUploadComponent implements OnDestroy {
     this.processedWords.forEach(word => {
       word.phonemes.forEach(phoneme => {
         if (phoneme.isCorrect !== null) {
-          evaluations.push({
+          const evaluation: any = {
             word: word.word,
             phoneme: phoneme.phoneme,
             start: phoneme.start,
@@ -792,7 +894,23 @@ export class AudioUploadComponent implements OnDestroy {
             score: phoneme.score,
             isCorrect: phoneme.isCorrect,
             phonemeId: phoneme.id
-          });
+          };
+          
+          // Aggiungi informazioni IPA aggiuntive se disponibili
+          if (phoneme.ipa_symbol && phoneme.ipa_symbol !== phoneme.phoneme) {
+            evaluation.ipa_symbol = phoneme.ipa_symbol;
+          }
+          if (phoneme.linguistic_weight !== undefined) {
+            evaluation.linguistic_weight = phoneme.linguistic_weight;
+          }
+          if (phoneme.confidence !== undefined) {
+            evaluation.confidence = phoneme.confidence;
+          }
+          if (phoneme.description) {
+            evaluation.description = phoneme.description;
+          }
+          
+          evaluations.push(evaluation);
         }
       });
     });

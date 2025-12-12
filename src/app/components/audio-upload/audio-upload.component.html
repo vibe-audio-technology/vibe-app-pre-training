@@ -418,7 +418,7 @@
                     [class.correct]="phoneme.isCorrect === true"
                     [class.incorrect]="phoneme.isCorrect === false"
                     [class.filtered]="phonemeMatchesFilter(phoneme)"
-                    [title]="'Score: ' + (phoneme.score * 100).toFixed(1) + '%'"
+                    [title]="getPhonemeTooltip(phoneme)"
                   >
                     <div class="phoneme-header">
                       <span class="phoneme-symbol">{{ phoneme.phoneme }}</span>
@@ -428,9 +428,23 @@
                       </span>
                     </div>
                     <span class="phoneme-time">{{ formatTime(phoneme.start) }} - {{ formatTime(phoneme.end) }}</span>
-                    <span class="phoneme-score" [class.low-score]="phoneme.score < 0.7">
+                    <div class="phoneme-scores" *ngIf="phoneme.linguistic_weight !== undefined || phoneme.confidence !== undefined">
+                      <span class="phoneme-score" [class.low-score]="phoneme.score < 0.7">
+                        Score: {{ (phoneme.score * 100).toFixed(0) }}%
+                      </span>
+                      <span class="phoneme-linguistic-weight" *ngIf="phoneme.linguistic_weight !== undefined">
+                        Weight: {{ (phoneme.linguistic_weight * 100).toFixed(0) }}%
+                      </span>
+                      <span class="phoneme-confidence" *ngIf="phoneme.confidence !== undefined">
+                        Conf: {{ (phoneme.confidence * 100).toFixed(0) }}%
+                      </span>
+                    </div>
+                    <span class="phoneme-score" *ngIf="phoneme.linguistic_weight === undefined && phoneme.confidence === undefined" [class.low-score]="phoneme.score < 0.7">
                       {{ (phoneme.score * 100).toFixed(0) }}%
                     </span>
+                    <div class="phoneme-description" *ngIf="phoneme.description">
+                      <span class="description-text">{{ phoneme.description }}</span>
+                    </div>
                     <div class="phoneme-actions">
                       <button 
                         *ngIf="audioUrl"
