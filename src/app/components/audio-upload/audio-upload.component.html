@@ -19,6 +19,41 @@
   <main class="main-content">
     <!-- Left Column: Upload & Audio -->
     <div class="left-column">
+    <!-- Sample Sentence Section -->
+    <div class="sample-section">
+      <div class="sample-header">
+        <h3>Frase di esempio</h3>
+        <button 
+          class="load-sample-btn" 
+          (click)="loadRandomSample()" 
+          [disabled]="isLoadingSample"
+          [title]="isLoadingSample ? 'Caricamento...' : 'Carica una frase random dal campione'"
+        >
+          <svg *ngIf="!isLoadingSample" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 1 1 10 10"></path>
+            <path d="M8 12h8"></path>
+          </svg>
+          <span *ngIf="isLoadingSample">Caricamento...</span>
+          <span *ngIf="!isLoadingSample">Carica frase random</span>
+        </button>
+      </div>
+      
+      <div class="sample-content" *ngIf="sampleSentence">
+        <div class="sample-text">
+          <div class="sample-label">Testo:</div>
+          <div class="sample-value">{{ sampleSentence.text }}</div>
+        </div>
+        <div class="sample-ipa">
+          <div class="sample-label">IPA:</div>
+          <div class="sample-value ipa-text">{{ sampleSentence.ipa }}</div>
+        </div>
+      </div>
+      
+      <div class="sample-placeholder" *ngIf="!sampleSentence && !isLoadingSample">
+        <p>Clicca "Carica frase random" per selezionare una frase di esempio dal campione.</p>
+      </div>
+    </div>
+
     <!-- Audio Upload Section -->
     <div class="audio-section">
       <div class="audio-upload-area" [class.has-file]="audioFile" [class.has-error]="audioError">
@@ -279,12 +314,12 @@
       <div class="preview-header">
         <h2>Frase con Fonemi</h2>
         <div class="header-actions">
-          <div class="header-info" *ngIf="(jsonContent?.result?.language || jsonContent?.language)">
-            <span class="language-badge">Lingua: {{ (jsonContent?.result?.language || jsonContent?.language)?.toUpperCase() }}</span>
+          <div class="header-info" *ngIf="(jsonContent?.language || jsonContent?.result?.language)">
+            <span class="language-badge">Lingua: {{ (jsonContent?.language || jsonContent?.result?.language)?.toUpperCase() }}</span>
           </div>
           
           <!-- Phoneme Filter Dropdown -->
-          <div class="phoneme-filter" *ngIf="uniquePhonemes.length > 0">
+          <div class="phoneme-filter" *ngIf="shouldShowPhonemes() && uniquePhonemes.length > 0">
             <label for="phonemeFilter" class="filter-label">Filtra fonema:</label>
             <select 
               id="phonemeFilter"
@@ -310,7 +345,7 @@
             </button>
           </div>
           
-          <div class="evaluation-stats" *ngIf="getEvaluationStats().total > 0">
+          <div class="evaluation-stats" *ngIf="shouldShowPhonemes() && getEvaluationStats().total > 0">
             <div class="stat-item">
               <span class="stat-label">Corretti:</span>
               <span class="stat-value correct-stat">{{ getEvaluationStats().correct }}</span>
@@ -335,7 +370,38 @@
         </div>
       </div>
 
-      <div class="sentence-container">
+      <!-- Full Transcription Section -->
+      <div class="full-transcription-section" *ngIf="getFullText() || getFullIpaTranscription()">
+        <h3>Trascrizione completa</h3>
+        <div class="transcription-content">
+          <div class="transcription-item" *ngIf="getFullText()">
+            <div class="transcription-label">Testo letterale:</div>
+            <div class="transcription-value text-transcription">{{ getFullText() }}</div>
+          </div>
+          <div class="transcription-item" *ngIf="getFullIpaTranscription()">
+            <div class="transcription-label">Trascrizione fonemica (IPA):</div>
+            <div class="transcription-value ipa-transcription">{{ getFullIpaTranscription() }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Message when phonemes are hidden -->
+      <div class="phonemes-hidden-message" *ngIf="!shouldShowPhonemes() && sampleSentence && getFullText()">
+        <div class="message-content">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+          <p>
+            <strong>I fonemi non sono disponibili</strong><br>
+            La frase di esempio non corrisponde alla trascrizione completa. 
+            Carica una frase di esempio che corrisponda al testo trascritto per visualizzare i fonemi.
+          </p>
+        </div>
+      </div>
+
+      <div class="sentence-container" *ngIf="shouldShowPhonemes()">
         <div class="filter-info" *ngIf="selectedPhonemeFilter">
           <p>
             <strong>Fonema selezionato: "{{ selectedPhonemeFilter }}"</strong> - 

@@ -1,0 +1,449 @@
+{
+  "segments": [
+    {
+      "start": 0.52,
+      "end": 2.4303,
+      "text": " Ciao, ci cercano!",
+      "words": [
+        {
+          "word": "Ciao,",
+          "start": 0.52,
+          "end": 1.089,
+          "score": 0.7658
+        },
+        {
+          "word": "ci",
+          "start": 1.2719,
+          "end": 1.4752,
+          "score": 0.6664
+        },
+        {
+          "word": "cercano!",
+          "start": 1.4955,
+          "end": 2.4303,
+          "score": 0.7897
+        }
+      ],
+      "phonemes": [
+        {
+          "phoneme": "C",
+          "start": 0.52,
+          "end": 0.8452,
+          "score": 0.8611
+        },
+        {
+          "phoneme": "i",
+          "start": 0.8452,
+          "end": 0.8655,
+          "score": 0.7962
+        },
+        {
+          "phoneme": "a",
+          "start": 0.8655,
+          "end": 1.0484,
+          "score": 0.7312
+        },
+        {
+          "phoneme": "o",
+          "start": 1.0484,
+          "end": 1.0687,
+          "score": 0.8432
+        },
+        {
+          "phoneme": ",",
+          "start": 1.0687,
+          "end": 1.089,
+          "score": 0.5973
+        },
+        {
+          "phoneme": "ci",
+          "start": 1.2719,
+          "end": 1.4752,
+          "score": 0.6664
+        },
+        {
+          "phoneme": "ce",
+          "start": 1.4955,
+          "end": 1.8003,
+          "score": 0.8746
+        },
+        {
+          "phoneme": "r",
+          "start": 1.8003,
+          "end": 1.9426,
+          "score": 0.8167
+        },
+        {
+          "phoneme": "c",
+          "start": 1.9426,
+          "end": 2.0848,
+          "score": 0.9746
+        },
+        {
+          "phoneme": "a",
+          "start": 2.0848,
+          "end": 2.2271,
+          "score": 0.9168
+        },
+        {
+          "phoneme": "n",
+          "start": 2.2271,
+          "end": 2.3287,
+          "score": 0.9424
+        },
+        {
+          "phoneme": "o",
+          "start": 2.3287,
+          "end": 2.41,
+          "score": 0.9065
+        },
+        {
+          "phoneme": "!",
+          "start": 2.41,
+          "end": 2.4303,
+          "score": 0.0113
+        }
+      ],
+      "ipa_segments": [
+        {
+          "ipa_symbol": "k",
+          "orthographic": " Ciao, ci cercano!",
+          "start": 0.52,
+          "end": 0.6669,
+          "linguistic_weight": 0.9,
+          "confidence": 1,
+          "description": "C dura (es. cane)"
+        },
+        {
+          "ipa_symbol": "ʧ",
+          "orthographic": " Ciao, ci cercano!",
+          "start": 0.6669,
+          "end": 0.8139,
+          "linguistic_weight": 0.9,
+          "confidence": 1,
+          "description": "C morbida (es. cena)"
+        },
+        {
+          "ipa_symbol": "a",
+          "orthographic": " Ciao, ci cercano!",
+          "start": 0.8139,
+          "end": 0.9608,
+          "linguistic_weight": 0.85,
+          "confidence": 1,
+          "description": "IPA symbol: a"
+        },
+        {
+          "ipa_symbol": "ɔ",
+          "orthographic": " Ciao, ci cercano!",
+          "start": 0.9608,
+          "end": 1.1078,
+          "linguistic_weight": 0.9,
+          "confidence": 1,
+          "description": "O aperta (es. ora)"
+        },
+        {
+          "ipa_symbol": ",",
+          "orthographic": " Ciao, ci cercano!",
+          "start": 1.1078,
+          "end": 1.2547,
+          "linguistic_weight": 0.8,
+          "confidence": 1,
+          "description": "IPA symbol: ,"
+        },
+        {
+          "ipa_symbol": "ci",
+          "orthographic": " Ciao, ci cercano!",
+          "start": 1.2547,
+          "end": 1.4017,
+          "linguistic_weight": 0.8,
+          "confidence": 1,
+          "description": "IPA symbol: ci"
+        },
+        {
+          "ipa_symbol": "ce",
+          "orthographic": " Ciao, ci cercano!",
+          "start": 1.4017,
+          "end": 1.5486,
+          "linguistic_weight": 0.8,
+          "confidence": 1,
+          "description": "IPA symbol: ce"
+        },
+        {
+          "ipa_symbol": "ʧ",
+          "orthographic": " Ciao, ci cercano!",
+          "start": 1.5486,
+          "end": 1.6956,
+          "linguistic_weight": 0.9,
+          "confidence": 1,
+          "description": "C morbida (es. cena)"
+        },
+        {
+          "ipa_symbol": "k",
+          "orthographic": " Ciao, ci cercano!",
+          "start": 1.6956,
+          "end": 1.8425,
+          "linguistic_weight": 0.9,
+          "confidence": 1,
+          "description": "C dura (es. cane)"
+        },
+        {
+          "ipa_symbol": "a",
+          "orthographic": " Ciao, ci cercano!",
+          "start": 1.8425,
+          "end": 1.9895,
+          "linguistic_weight": 0.85,
+          "confidence": 1,
+          "description": "IPA symbol: a"
+        },
+        {
+          "ipa_symbol": "ʧ",
+          "orthographic": " Ciao, ci cercano!",
+          "start": 1.9895,
+          "end": 2.1364,
+          "linguistic_weight": 0.9,
+          "confidence": 1,
+          "description": "C morbida (es. cena)"
+        },
+        {
+          "ipa_symbol": "o",
+          "orthographic": " Ciao, ci cercano!",
+          "start": 2.1364,
+          "end": 2.2834,
+          "linguistic_weight": 0.9,
+          "confidence": 1,
+          "description": "O chiusa (es. porta)"
+        },
+        {
+          "ipa_symbol": "!",
+          "orthographic": " Ciao, ci cercano!",
+          "start": 2.2834,
+          "end": 2.4303,
+          "linguistic_weight": 0.8,
+          "confidence": 1,
+          "description": "IPA symbol: !"
+        }
+      ]
+    }
+  ],
+  "word_segments": [
+    {
+      "word": "Ciao,",
+      "start": 0.52,
+      "end": 1.089,
+      "score": 0.7658
+    },
+    {
+      "word": "ci",
+      "start": 1.2719,
+      "end": 1.4752,
+      "score": 0.6664
+    },
+    {
+      "word": "cercano!",
+      "start": 1.4955,
+      "end": 2.4303,
+      "score": 0.7897
+    }
+  ],
+  "phoneme_segments": [
+    {
+      "phoneme": "C",
+      "start": 0.52,
+      "end": 0.8452,
+      "score": 0.8611
+    },
+    {
+      "phoneme": "i",
+      "start": 0.8452,
+      "end": 0.8655,
+      "score": 0.7962
+    },
+    {
+      "phoneme": "a",
+      "start": 0.8655,
+      "end": 1.0484,
+      "score": 0.7312
+    },
+    {
+      "phoneme": "o",
+      "start": 1.0484,
+      "end": 1.0687,
+      "score": 0.8432
+    },
+    {
+      "phoneme": ",",
+      "start": 1.0687,
+      "end": 1.089,
+      "score": 0.5973
+    },
+    {
+      "phoneme": "ci",
+      "start": 1.2719,
+      "end": 1.4752,
+      "score": 0.6664
+    },
+    {
+      "phoneme": "ce",
+      "start": 1.4955,
+      "end": 1.8003,
+      "score": 0.8746
+    },
+    {
+      "phoneme": "r",
+      "start": 1.8003,
+      "end": 1.9426,
+      "score": 0.8167
+    },
+    {
+      "phoneme": "c",
+      "start": 1.9426,
+      "end": 2.0848,
+      "score": 0.9746
+    },
+    {
+      "phoneme": "a",
+      "start": 2.0848,
+      "end": 2.2271,
+      "score": 0.9168
+    },
+    {
+      "phoneme": "n",
+      "start": 2.2271,
+      "end": 2.3287,
+      "score": 0.9424
+    },
+    {
+      "phoneme": "o",
+      "start": 2.3287,
+      "end": 2.41,
+      "score": 0.9065
+    },
+    {
+      "phoneme": "!",
+      "start": 2.41,
+      "end": 2.4303,
+      "score": 0.0113
+    }
+  ],
+  "ipa_segments": [
+    {
+      "ipa_symbol": "k",
+      "orthographic": " Ciao, ci cercano!",
+      "start": 0.52,
+      "end": 0.6669,
+      "linguistic_weight": 0.9,
+      "confidence": 1,
+      "description": "C dura (es. cane)"
+    },
+    {
+      "ipa_symbol": "ʧ",
+      "orthographic": " Ciao, ci cercano!",
+      "start": 0.6669,
+      "end": 0.8139,
+      "linguistic_weight": 0.9,
+      "confidence": 1,
+      "description": "C morbida (es. cena)"
+    },
+    {
+      "ipa_symbol": "a",
+      "orthographic": " Ciao, ci cercano!",
+      "start": 0.8139,
+      "end": 0.9608,
+      "linguistic_weight": 0.85,
+      "confidence": 1,
+      "description": "IPA symbol: a"
+    },
+    {
+      "ipa_symbol": "ɔ",
+      "orthographic": " Ciao, ci cercano!",
+      "start": 0.9608,
+      "end": 1.1078,
+      "linguistic_weight": 0.9,
+      "confidence": 1,
+      "description": "O aperta (es. ora)"
+    },
+    {
+      "ipa_symbol": ",",
+      "orthographic": " Ciao, ci cercano!",
+      "start": 1.1078,
+      "end": 1.2547,
+      "linguistic_weight": 0.8,
+      "confidence": 1,
+      "description": "IPA symbol: ,"
+    },
+    {
+      "ipa_symbol": "ci",
+      "orthographic": " Ciao, ci cercano!",
+      "start": 1.2547,
+      "end": 1.4017,
+      "linguistic_weight": 0.8,
+      "confidence": 1,
+      "description": "IPA symbol: ci"
+    },
+    {
+      "ipa_symbol": "ce",
+      "orthographic": " Ciao, ci cercano!",
+      "start": 1.4017,
+      "end": 1.5486,
+      "linguistic_weight": 0.8,
+      "confidence": 1,
+      "description": "IPA symbol: ce"
+    },
+    {
+      "ipa_symbol": "ʧ",
+      "orthographic": " Ciao, ci cercano!",
+      "start": 1.5486,
+      "end": 1.6956,
+      "linguistic_weight": 0.9,
+      "confidence": 1,
+      "description": "C morbida (es. cena)"
+    },
+    {
+      "ipa_symbol": "k",
+      "orthographic": " Ciao, ci cercano!",
+      "start": 1.6956,
+      "end": 1.8425,
+      "linguistic_weight": 0.9,
+      "confidence": 1,
+      "description": "C dura (es. cane)"
+    },
+    {
+      "ipa_symbol": "a",
+      "orthographic": " Ciao, ci cercano!",
+      "start": 1.8425,
+      "end": 1.9895,
+      "linguistic_weight": 0.85,
+      "confidence": 1,
+      "description": "IPA symbol: a"
+    },
+    {
+      "ipa_symbol": "ʧ",
+      "orthographic": " Ciao, ci cercano!",
+      "start": 1.9895,
+      "end": 2.1364,
+      "linguistic_weight": 0.9,
+      "confidence": 1,
+      "description": "C morbida (es. cena)"
+    },
+    {
+      "ipa_symbol": "o",
+      "orthographic": " Ciao, ci cercano!",
+      "start": 2.1364,
+      "end": 2.2834,
+      "linguistic_weight": 0.9,
+      "confidence": 1,
+      "description": "O chiusa (es. porta)"
+    },
+    {
+      "ipa_symbol": "!",
+      "orthographic": " Ciao, ci cercano!",
+      "start": 2.2834,
+      "end": 2.4303,
+      "linguistic_weight": 0.8,
+      "confidence": 1,
+      "description": "IPA symbol: !"
+    }
+  ],
+  "language": "it",
+  "text": " Ciao, ci cercano!"
+}

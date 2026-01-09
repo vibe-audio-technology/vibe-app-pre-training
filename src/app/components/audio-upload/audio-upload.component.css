@@ -303,6 +303,106 @@
   margin-top: 1.5rem;
 }
 
+/* Full Transcription Section */
+.full-transcription-section {
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
+  padding: 1.5rem;
+  background: #f8fafc;
+  border: 2px solid var(--border);
+  border-radius: 0.75rem;
+}
+
+.full-transcription-section h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text);
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid var(--border);
+}
+
+.transcription-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.transcription-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.transcription-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.transcription-value {
+  font-size: 1.125rem;
+  line-height: 1.8;
+  padding: 1rem 1.25rem;
+  background: white;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  word-wrap: break-word;
+}
+
+.transcription-value.text-transcription {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.transcription-value.ipa-transcription {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  color: var(--accent);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  font-size: 1.25rem;
+}
+
+/* Phonemes Hidden Message */
+.phonemes-hidden-message {
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
+  padding: 1.5rem;
+  background: #fef3c7;
+  border: 2px solid #fbbf24;
+  border-radius: 0.75rem;
+}
+
+.message-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.message-content svg {
+  width: 24px;
+  height: 24px;
+  color: #f59e0b;
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+.message-content p {
+  margin: 0;
+  color: #92400e;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.message-content p strong {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+  color: #78350f;
+}
+
 .sentence-text {
   font-size: 1.5rem;
   line-height: 2;
@@ -918,12 +1018,120 @@
 .audio-section,
 .api-section,
 .process-flow,
-.sentence-view {
+.sentence-view,
+.sample-section {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 1rem;
   padding: 1.75rem;
   box-shadow: 0 15px 35px rgba(15, 23, 42, 0.08);
+}
+
+/* Sample Section Styles */
+.sample-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.sample-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.sample-header h3 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: var(--text);
+}
+
+.load-sample-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  background: var(--accent);
+  color: #f8fafc;
+  border: none;
+  border-radius: 0.65rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.load-sample-btn:hover:not(:disabled) {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.load-sample-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.load-sample-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.sample-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+}
+
+.sample-text,
+.sample-ipa {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sample-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.sample-value {
+  font-size: 1.125rem;
+  color: var(--text);
+  line-height: 1.6;
+  padding: 0.75rem;
+  background: white;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+}
+
+.sample-value.ipa-text {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 1rem;
+  color: var(--accent);
+  letter-spacing: 0.05em;
+}
+
+.sample-placeholder {
+  padding: 2rem;
+  text-align: center;
+  color: var(--muted);
+  font-style: italic;
+  background: #f8fafc;
+  border: 1px dashed var(--border);
+  border-radius: 0.75rem;
+}
+
+.sample-placeholder p {
+  margin: 0;
+  font-size: 0.9rem;
 }
 
 .audio-section {

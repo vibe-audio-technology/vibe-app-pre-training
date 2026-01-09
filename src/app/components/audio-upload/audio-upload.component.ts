@@ -105,9 +105,59 @@ export class AudioUploadComponent implements OnDestroy {
   s3BucketDisplay: string = '';
   s3KeyDisplay: string = '';
 
+  // Sample sentence properties
+  sampleSentence: { text: string; ipa: string } | null = null;
+  isLoadingSample: boolean = false;
+
+  async loadRandomSample(): Promise<void> {
+    this.isLoadingSample = true;
+    try {
+      // Il file è in public/mock/campione.txt, quindi accessibile da /mock/campione.txt
+      const response = await fetch('/mock/campione.txt');
+      if (!response.ok) {
+        throw new Error(`Impossibile caricare il file campione.txt (status: ${response.status}). Assicurati che il server di sviluppo sia riavviato.`);
+      }
+      
+      const content = await response.text();
+      if (!content || content.trim().length === 0) {
+        throw new Error('Il file campione.txt è vuoto');
+      }
+      
+      const lines = content.split('\n').filter(line => line.trim().length > 0);
+      
+      // Le frasi sono in coppie: testo italiano (riga dispari) e IPA (riga pari)
+      const sentences: { text: string; ipa: string }[] = [];
+      
+      for (let i = 0; i < lines.length; i += 2) {
+        if (i + 1 < lines.length) {
+          const text = lines[i].trim();
+          const ipa = lines[i + 1].trim();
+          if (text && ipa) {
+            sentences.push({ text, ipa });
+          }
+        }
+      }
+      
+      if (sentences.length === 0) {
+        throw new Error('Nessuna frase trovata nel file campione.txt');
+      }
+      
+      // Seleziona una frase random
+      const randomIndex = Math.floor(Math.random() * sentences.length);
+      this.sampleSentence = sentences[randomIndex];
+    } catch (error: any) {
+      console.error('Errore nel caricamento del campione:', error);
+      alert(`Errore nel caricamento del campione: ${error.message}\n\nAssicurati che:\n1. Il file esista in public/mock/campione.txt\n2. Il server di sviluppo sia riavviato`);
+      this.sampleSentence = null;
+    } finally {
+      this.isLoadingSample = false;
+    }
+  }
+
   processJsonData(): void {
-    // Nuova struttura: result.text, result.aligned_segments, result.phoneme_segments
-    // jsonContent può essere direttamente il result (dalla API) oppure contenere un campo result
+    // Nuova struttura: supporta sia il formato con result che quello diretto
+    // Formato nuovo: text, word_segments, phoneme_segments, ipa_segments a livello root
+    // Formato vecchio: result.text, result.aligned_segments, result.phoneme_segments
     if (!this.jsonContent) {
       return;
     }
@@ -115,10 +165,18 @@ export class AudioUploadComponent implements OnDestroy {
     // Se jsonContent ha un campo result, usalo, altrimenti usa jsonContent direttamente
     const result = this.jsonContent.result || this.jsonContent;
 
-    // Estrai il testo completo (usa result.text se disponibile, altrimenti da asr_segments)
-    // NON usare aligned_segments per il testo completo perché spesso contiene solo l'ultimo segmento
+    // Estrai il testo completo
+    // Priorità: result.text > text (root) > segments[].text > asr_segments[].text
     if (result.text) {
       this.fullText = result.text.trim();
+    } else if (this.jsonContent.text) {
+      this.fullText = this.jsonContent.text.trim();
+    } else if (result.segments && Array.isArray(result.segments) && result.segments.length > 0) {
+      // Estrai testo dai segments
+      this.fullText = result.segments
+        .map((segment: any) => (segment.text || '').trim())
+        .filter((text: string) => text.length > 0)
+        .join(' ');
     } else if (result.asr_segments && Array.isArray(result.asr_segments) && result.asr_segments.length > 0) {
       this.fullText = result.asr_segments
         .map((segment: AsrSegment) => (segment.text || '').trim())
@@ -128,14 +186,25 @@ export class AudioUploadComponent implements OnDestroy {
       this.fullText = '';
     }
 
-    // Estrai lista fonemi unici da result.phoneme_segments
+    // Estrai lista fonemi unici
     this.extractUniquePhonemes();
 
-    // Raccogli tutte le parole allineate da word_segments o aligned_segments
+    // Raccogli tutte le parole allineate
+    // Priorità: word_segments (root) > result.word_segments > segments[].words > aligned_segments[].words
     const alignedWords: Word[] = [];
     
-    if (result.word_segments && Array.isArray(result.word_segments) && result.word_segments.length > 0) {
+    // Prima cerca a livello root
+    if (this.jsonContent.word_segments && Array.isArray(this.jsonContent.word_segments) && this.jsonContent.word_segments.length > 0) {
+      alignedWords.push(...this.jsonContent.word_segments);
+    } else if (result.word_segments && Array.isArray(result.word_segments) && result.word_segments.length > 0) {
       alignedWords.push(...result.word_segments);
+    } else if (result.segments && Array.isArray(result.segments) && result.segments.length > 0) {
+      // Estrai parole dai segments
+      result.segments.forEach((segment: any) => {
+        if (segment.words && Array.isArray(segment.words) && segment.words.length > 0) {
+          alignedWords.push(...segment.words);
+        }
+      });
     } else if (result.aligned_segments && Array.isArray(result.aligned_segments) && result.aligned_segments.length > 0) {
       result.aligned_segments.forEach((segment: AlignedSegment) => {
         if (segment.words && Array.isArray(segment.words) && segment.words.length > 0) {
@@ -147,12 +216,24 @@ export class AudioUploadComponent implements OnDestroy {
     // Ordina le parole allineate per timestamp
     alignedWords.sort((a: Word, b: Word) => a.start - b.start);
 
-    // Raccogli tutti i fonemi da phoneme_segments
-    // Supporta anche il nuovo formato IPA dettagliato (ipa_segments o ipa_phoneme_segments)
-    // Cerca anche a livello root se non trovato in result
+    // Raccogli tutti i fonemi
+    // Priorità: ipa_segments (root) > result.ipa_segments > segments[].ipa_segments > segments[].phonemes > phoneme_segments
     const allPhonemes: Phoneme[] = [];
-    const ipaPhonemes: IpaPhoneme[] = result.ipa_segments || result.ipa_phoneme_segments || 
-                                      this.jsonContent.ipa_segments || this.jsonContent.ipa_phoneme_segments || [];
+    let ipaPhonemes: IpaPhoneme[] = [];
+    
+    // Cerca IPA segments a livello root
+    if (this.jsonContent.ipa_segments && Array.isArray(this.jsonContent.ipa_segments) && this.jsonContent.ipa_segments.length > 0) {
+      ipaPhonemes = this.jsonContent.ipa_segments;
+    } else if (result.ipa_segments && Array.isArray(result.ipa_segments) && result.ipa_segments.length > 0) {
+      ipaPhonemes = result.ipa_segments;
+    } else if (result.segments && Array.isArray(result.segments) && result.segments.length > 0) {
+      // Estrai IPA segments dai segments
+      result.segments.forEach((segment: any) => {
+        if (segment.ipa_segments && Array.isArray(segment.ipa_segments) && segment.ipa_segments.length > 0) {
+          ipaPhonemes.push(...segment.ipa_segments);
+        }
+      });
+    }
     
     // Se ci sono dati IPA dettagliati, usali come fonte primaria
     if (ipaPhonemes.length > 0) {
@@ -166,8 +247,24 @@ export class AudioUploadComponent implements OnDestroy {
         });
       });
     } else {
-      // Fallback ai dati phoneme_segments esistenti
-      allPhonemes.push(...(result.phoneme_segments || []));
+      // Fallback ai phoneme_segments
+      let phonemeSegments: Phoneme[] = [];
+      
+      // Cerca phoneme_segments a livello root
+      if (this.jsonContent.phoneme_segments && Array.isArray(this.jsonContent.phoneme_segments) && this.jsonContent.phoneme_segments.length > 0) {
+        phonemeSegments = this.jsonContent.phoneme_segments;
+      } else if (result.phoneme_segments && Array.isArray(result.phoneme_segments) && result.phoneme_segments.length > 0) {
+        phonemeSegments = result.phoneme_segments;
+      } else if (result.segments && Array.isArray(result.segments) && result.segments.length > 0) {
+        // Estrai phonemes dai segments
+        result.segments.forEach((segment: any) => {
+          if (segment.phonemes && Array.isArray(segment.phonemes) && segment.phonemes.length > 0) {
+            phonemeSegments.push(...segment.phonemes);
+          }
+        });
+      }
+      
+      allPhonemes.push(...phonemeSegments);
     }
     
     // Mantieni riferimento ai dati IPA completi per uso futuro
@@ -296,8 +393,7 @@ export class AudioUploadComponent implements OnDestroy {
   extractUniquePhonemes(): void {
     const phonemeSet = new Set<string>();
     
-    // Nuova struttura: result.phoneme_segments è un array flat di fonemi
-    // jsonContent può essere direttamente il result (dalla API) oppure contenere un campo result
+    // Supporta il nuovo formato con dati a livello root o annidati
     if (!this.jsonContent) {
       this.uniquePhonemes = [];
       return;
@@ -306,9 +402,24 @@ export class AudioUploadComponent implements OnDestroy {
     const result = this.jsonContent.result || this.jsonContent;
     
     // Prima controlla i nuovi dati IPA dettagliati
-    // Cerca anche a livello root se non trovato in result
-    const ipaPhonemes: IpaPhoneme[] = result.ipa_segments || result.ipa_phoneme_segments || 
-                                      this.jsonContent.ipa_segments || this.jsonContent.ipa_phoneme_segments || [];
+    // Priorità: ipa_segments (root) > result.ipa_segments > segments[].ipa_segments
+    let ipaPhonemes: IpaPhoneme[] = [];
+    
+    if (this.jsonContent.ipa_segments && Array.isArray(this.jsonContent.ipa_segments) && this.jsonContent.ipa_segments.length > 0) {
+      ipaPhonemes = this.jsonContent.ipa_segments;
+    } else if (result.ipa_segments && Array.isArray(result.ipa_segments) && result.ipa_segments.length > 0) {
+      ipaPhonemes = result.ipa_segments;
+    } else if (result.ipa_phoneme_segments && Array.isArray(result.ipa_phoneme_segments) && result.ipa_phoneme_segments.length > 0) {
+      ipaPhonemes = result.ipa_phoneme_segments;
+    } else if (result.segments && Array.isArray(result.segments) && result.segments.length > 0) {
+      // Estrai IPA segments dai segments
+      result.segments.forEach((segment: any) => {
+        if (segment.ipa_segments && Array.isArray(segment.ipa_segments) && segment.ipa_segments.length > 0) {
+          ipaPhonemes.push(...segment.ipa_segments);
+        }
+      });
+    }
+    
     if (ipaPhonemes.length > 0) {
       ipaPhonemes.forEach((ipa: IpaPhoneme) => {
         if (ipa.ipa_symbol) {
@@ -319,20 +430,111 @@ export class AudioUploadComponent implements OnDestroy {
     }
     
     // Fallback ai dati phoneme_segments esistenti
-    if (result && result.phoneme_segments) {
-      const phonemeSegments = result.phoneme_segments;
-      
-      if (Array.isArray(phonemeSegments) && phonemeSegments.length > 0) {
-        phonemeSegments.forEach((phoneme: Phoneme) => {
-          if (phoneme.phoneme) {
-            // Normalizza in minuscolo per evitare duplicati tra maiuscole e minuscole
-            phonemeSet.add(phoneme.phoneme.toLowerCase());
-          }
-        });
-      }
+    let phonemeSegments: Phoneme[] = [];
+    
+    if (this.jsonContent.phoneme_segments && Array.isArray(this.jsonContent.phoneme_segments) && this.jsonContent.phoneme_segments.length > 0) {
+      phonemeSegments = this.jsonContent.phoneme_segments;
+    } else if (result && result.phoneme_segments && Array.isArray(result.phoneme_segments) && result.phoneme_segments.length > 0) {
+      phonemeSegments = result.phoneme_segments;
+    } else if (result.segments && Array.isArray(result.segments) && result.segments.length > 0) {
+      // Estrai phonemes dai segments
+      result.segments.forEach((segment: any) => {
+        if (segment.phonemes && Array.isArray(segment.phonemes) && segment.phonemes.length > 0) {
+          phonemeSegments.push(...segment.phonemes);
+        }
+      });
+    }
+    
+    if (phonemeSegments.length > 0) {
+      phonemeSegments.forEach((phoneme: Phoneme) => {
+        if (phoneme.phoneme) {
+          // Normalizza in minuscolo per evitare duplicati tra maiuscole e minuscole
+          phonemeSet.add(phoneme.phoneme.toLowerCase());
+        }
+      });
     }
     
     this.uniquePhonemes = Array.from(phonemeSet).sort();
+  }
+
+  getFullIpaTranscription(): string {
+    if (!this.jsonContent) {
+      return '';
+    }
+
+    const result = this.jsonContent.result || this.jsonContent;
+    let ipaSegments: IpaPhoneme[] = [];
+
+    // Cerca IPA segments a livello root
+    if (this.jsonContent.ipa_segments && Array.isArray(this.jsonContent.ipa_segments) && this.jsonContent.ipa_segments.length > 0) {
+      ipaSegments = this.jsonContent.ipa_segments;
+    } else if (result.ipa_segments && Array.isArray(result.ipa_segments) && result.ipa_segments.length > 0) {
+      ipaSegments = result.ipa_segments;
+    } else if (result.segments && Array.isArray(result.segments) && result.segments.length > 0) {
+      // Estrai IPA segments dai segments
+      result.segments.forEach((segment: any) => {
+        if (segment.ipa_segments && Array.isArray(segment.ipa_segments) && segment.ipa_segments.length > 0) {
+          ipaSegments.push(...segment.ipa_segments);
+        }
+      });
+    }
+
+    if (ipaSegments.length === 0) {
+      return '';
+    }
+
+    // Ordina per timestamp
+    const sortedIpa = [...ipaSegments].sort((a, b) => a.start - b.start);
+    
+    // Concatena i simboli IPA con spazi appropriati
+    const ipaString = sortedIpa.map(ipa => ipa.ipa_symbol).join(' ');
+    
+    // Formatta come trascrizione IPA standard
+    return `/${ipaString}/`;
+  }
+
+  getFullText(): string {
+    if (!this.jsonContent) {
+      return '';
+    }
+
+    const result = this.jsonContent.result || this.jsonContent;
+    
+    // Priorità: result.text > text (root) > segments[].text > fullText (processato)
+    if (result.text) {
+      return result.text.trim();
+    } else if (this.jsonContent.text) {
+      return this.jsonContent.text.trim();
+    } else if (this.fullText) {
+      return this.fullText.trim();
+    }
+    
+    return '';
+  }
+
+  shouldShowPhonemes(): boolean {
+    // Mostra i fonemi solo se il testo della frase di esempio corrisponde alla trascrizione completa
+    if (!this.sampleSentence || !this.sampleSentence.text) {
+      return false;
+    }
+
+    const fullText = this.getFullText();
+    if (!fullText) {
+      return false;
+    }
+
+    // Confronta i testi in lowercase, rimuovendo spazi extra e punteggiatura
+    const normalizeText = (text: string): string => {
+      return text.toLowerCase()
+        .trim()
+        .replace(/\s+/g, ' ') // Normalizza spazi multipli
+        .replace(/[.,!?;:]/g, ''); // Rimuove punteggiatura per il confronto
+    };
+
+    const sampleNormalized = normalizeText(this.sampleSentence.text);
+    const fullTextNormalized = normalizeText(fullText);
+
+    return sampleNormalized === fullTextNormalized;
   }
 
   onPhonemeFilterChange(phoneme: string | null): void {
@@ -844,16 +1046,21 @@ export class AudioUploadComponent implements OnDestroy {
       const status = (data.status || '').toUpperCase();
 
       if (status === 'DONE') {
+        // Supporta sia il formato con result che quello diretto
         if (data.result) {
           this.jsonContent = data.result;
-          this.processJsonData();
-          this.transcriptionStatus = 'done';
-          this.transcriptionMessage = 'Trascrizione completata con successo.';
-          this.selectedWord = null;
+        } else if (data.text || data.word_segments || data.segments) {
+          // Il risultato è direttamente in data (nuovo formato)
+          this.jsonContent = data;
         } else {
           this.transcriptionStatus = 'error';
           this.transcriptionError = 'Trascrizione completata ma risultato non disponibile.';
+          return;
         }
+        this.processJsonData();
+        this.transcriptionStatus = 'done';
+        this.transcriptionMessage = 'Trascrizione completata con successo.';
+        this.selectedWord = null;
         return;
       }
 
