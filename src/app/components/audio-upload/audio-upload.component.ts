@@ -112,10 +112,37 @@ export class AudioUploadComponent implements OnDestroy {
   async loadRandomSample(): Promise<void> {
     this.isLoadingSample = true;
     try {
-      // Il file è in public/mock/campione.txt, quindi accessibile da /mock/campione.txt
-      const response = await fetch('/mock/campione.txt');
-      if (!response.ok) {
-        throw new Error(`Impossibile caricare il file campione.txt (status: ${response.status}). Assicurati che il server di sviluppo sia riavviato.`);
+      // Costruisci il percorso considerando il base-href
+      // Usa document.baseURI per ottenere il base path corretto
+      const basePath = document.baseURI.replace(window.location.origin, '');
+      const baseHref = basePath.endsWith('/') ? basePath.slice(0, -1) : basePath;
+      
+      // Prova diversi percorsi possibili
+      const possiblePaths = [
+        `${baseHref}/assets/mock/campione.txt`,
+        `${baseHref}/mock/campione.txt`,
+        '/assets/mock/campione.txt',
+        './assets/mock/campione.txt',
+        'assets/mock/campione.txt'
+      ];
+      
+      let response: Response | null = null;
+      let lastError: Error | null = null;
+      
+      for (const path of possiblePaths) {
+        try {
+          response = await fetch(path);
+          if (response.ok) {
+            break;
+          }
+        } catch (err) {
+          lastError = err as Error;
+          continue;
+        }
+      }
+      
+      if (!response || !response.ok) {
+        throw new Error(`Impossibile caricare il file campione.txt (status: ${response?.status || 'unknown'})`);
       }
       
       const content = await response.text();
@@ -147,7 +174,7 @@ export class AudioUploadComponent implements OnDestroy {
       this.sampleSentence = sentences[randomIndex];
     } catch (error: any) {
       console.error('Errore nel caricamento del campione:', error);
-      alert(`Errore nel caricamento del campione: ${error.message}\n\nAssicurati che:\n1. Il file esista in public/mock/campione.txt\n2. Il server di sviluppo sia riavviato`);
+      alert(`Errore nel caricamento del campione: ${error.message}`);
       this.sampleSentence = null;
     } finally {
       this.isLoadingSample = false;
